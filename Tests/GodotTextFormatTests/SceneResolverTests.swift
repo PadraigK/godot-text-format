@@ -68,6 +68,39 @@ final class SceneResolverTests: XCTestCase {
         XCTAssertEqual(flat.nodes.map(\.type), ["Label", "StaticBody2D", "Sprite2D"])
     }
 
+    func testInheritanceTypedOverridePreservesParentFlags() throws {
+        // Parent marks 'Marker' with unique_name_in_owner=true and groups=["overlay"].
+        // Child overrides Marker to change its type. The unique-name flag and groups
+        // must survive the override.
+        let parent = """
+        [gd_scene format=3]
+
+        [node name="Base" type="Node2D"]
+
+        [node name="Marker" type="Sprite2D" parent="." groups=["overlay"]]
+        unique_name_in_owner = true
+        """
+        let child = """
+        [gd_scene format=3]
+
+        [ext_resource type="PackedScene" path="res://parent.tscn" id="1_parent"]
+
+        [node name="Derived" instance=ExtResource("1_parent")]
+
+        [node name="Marker" type="Sprite2D" parent="."]
+        """
+        let catalogue = makeCatalogue([
+            "res://parent.tscn": parent,
+            "res://child.tscn": child,
+        ])
+        let flat = try SceneResolver(catalogue: catalogue).flatten(resourcePath: "res://child.tscn")
+        let marker = flat.nodes.first(where: { $0.name == "Marker" })
+        XCTAssertNotNil(marker)
+        XCTAssertEqual(marker?.type, "Sprite2D")
+        XCTAssertTrue(marker?.uniqueInOwner ?? false, "unique_name_in_owner should survive typed override")
+        XCTAssertEqual(marker?.groups, ["overlay"], "groups should survive typed override")
+    }
+
     // MARK: - Nested instance boundary
 
     func testNestedInstanceIsBoundary() throws {

@@ -76,19 +76,17 @@ public struct SceneResolver {
 
             let flat = try makeFlatNode(node: node, path: pathComponents, scene: child)
             if let existing = pathIndex[key] {
-                // Override: if child gave no type, keep parent's type; otherwise take child's.
-                var merged = flat
-                if node.type == nil {
-                    merged = FlatNode(
-                        path: flat.path,
-                        name: flat.name,
-                        type: nodes[existing].type,
-                        scriptPath: flat.scriptPath ?? nodes[existing].scriptPath,
-                        uniqueInOwner: flat.uniqueInOwner || nodes[existing].uniqueInOwner,
-                        groups: flat.groups.isEmpty ? nodes[existing].groups : flat.groups,
-                        instanceScenePath: flat.instanceScenePath ?? nodes[existing].instanceScenePath
-                    )
-                }
+                // Override: child values win when specified; otherwise keep parent's.
+                // Type follows child's explicit type=, else parent's.
+                let merged = FlatNode(
+                    path: flat.path,
+                    name: flat.name,
+                    type: node.type ?? nodes[existing].type,
+                    scriptPath: flat.scriptPath ?? nodes[existing].scriptPath,
+                    uniqueInOwner: flat.uniqueInOwner || nodes[existing].uniqueInOwner,
+                    groups: flat.groups.isEmpty ? nodes[existing].groups : flat.groups,
+                    instanceScenePath: flat.instanceScenePath ?? nodes[existing].instanceScenePath
+                )
                 nodes[existing] = merged
             } else {
                 pathIndex[key] = nodes.count
