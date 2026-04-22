@@ -177,8 +177,13 @@ public struct Lexer {
             }
         }
 
-        // Reject literals that contain no digits at all (e.g. "-", "-.", ".")
-        if text == "-" || text == "." || text == "-." {
+        // `readNumber` is only entered when the caller has already seen a
+        // digit, `.<digit>`, or `-<digit|.|letter>`. The bare-period path
+        // guarantees a digit follows, so `text == "."` is unreachable here.
+        // The remaining rejection cases are `-` alone and `-.`, both of
+        // which slip through when the caller dispatches on `-` and the
+        // character after the period isn't a digit (e.g. "-.<space>").
+        if text == "-" || text == "-." {
             throw ParseError("malformed number literal '\(text)'", at: start)
         }
 
