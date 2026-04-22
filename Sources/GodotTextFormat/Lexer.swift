@@ -45,6 +45,8 @@ public struct Lexer {
             advance()
             return make(.period, ".", from: start)
         case "&": advance(); return make(.ampersand, "&", from: start)
+        case "\"":
+            return try readString(from: start)
         case "#": return try readHexColor(from: start)
         case "-":
             if let next = peek(1) {
@@ -188,6 +190,83 @@ public struct Lexer {
         }
 
         return make(isDouble ? .double : .integer, text, from: start)
+    }
+
+    // MARK: - Strings
+
+    private mutating func readString(from start: SourceLocation) throws -> Token {
+        advance() // consume opening "
+        var decoded = ""
+        while let ch = peek() {
+            if ch == "\"" {
+                advance()
+                return make(.string, decoded, from: start)
+            }
+            if ch == "\\" {
+                advance()
+                guard let esc = peek() else {
+                    throw ParseError("unterminated escape sequence", at: currentLocation())
+                }
+                advance()
+                switch esc {
+                case "b": decoded.append("\u{08}")
+                case "t": decoded.append("\t")
+                case "n": decoded.append("\n")
+                case "f": decoded.append("\u{0C}")
+                case "r": decoded.append("\r")
+                case "\"": decoded.append("\"")
+                case "\\": decoded.append("\\")
+                case "u":
+                    let scalar = try readUnicodeEscape(digits: 4)
+                    if let pair = try handleSurrogate(scalar) {
+                        decoded.append(pair)
+                    } else if let s = Unicode.Scalar(scalar) {
+                        decoded.append(Character(s))
+                    }
+                case "U":
+                    let scalar = try readUnicodeEscape(digits: 6)
+                    if let s = Unicode.Scalar(scalar) {
+                        decoded.append(Character(s))
+                    }
+                default:
+                    // Unknown escapes pass through as the literal character.
+                    decoded.append(esc)
+                }
+            } else {
+                decoded.append(ch)
+                advance()
+            }
+        }
+        throw ParseError("unterminated string literal", at: start)
+    }
+
+    private mutating func readUnicodeEscape(digits: Int) throws -> UInt32 {
+        var value: UInt32 = 0
+        for _ in 0..<digits {
+            guard let ch = peek(), let digit = ch.hexDigitValue else {
+                throw ParseError("expected \(digits) hex digits in unicode escape", at: currentLocation())
+            }
+            value = (value << 4) | UInt32(digit)
+            advance()
+        }
+        return value
+    }
+
+    /// If `high` is a UTF-16 high surrogate (U+D800..U+DBFF), consume the following
+    /// `\uXXXX` as the low surrogate and combine into a non-BMP codepoint.
+    /// Returns nil if `high` is not a high surrogate (caller handles as a plain BMP scalar).
+    private mutating func handleSurrogate(_ high: UInt32) throws -> Character? {
+        guard (0xD800...0xDBFF).contains(high) else { return nil }
+        guard peek() == "\\", peek(1) == "u" else {
+            throw ParseError("high surrogate \(String(high, radix: 16)) not followed by \\u low surrogate", at: currentLocation())
+        }
+        advance(); advance() // consume \u
+        let low = try readUnicodeEscape(digits: 4)
+        guard (0xDC00...0xDFFF).contains(low) else {
+            throw ParseError("expected low surrogate (DC00-DFFF) after high surrogate", at: currentLocation())
+        }
+        let scalar: UInt32 = 0x10000 + ((high - 0xD800) << 10) + (low - 0xDC00)
+        return Unicode.Scalar(scalar).map(Character.init)
     }
 
     // MARK: - Hex color

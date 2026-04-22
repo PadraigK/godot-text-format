@@ -152,6 +152,62 @@ final class LexerTests: XCTestCase {
         XCTAssertThrowsError(try tokenize("-+"))
     }
 
+    // MARK: - Strings
+
+    func testSimpleString() throws {
+        let tokens = try tokenize("\"hello world\"")
+        XCTAssertEqual(tokens.map(\.kind), [.string, .eof])
+        XCTAssertEqual(tokens[0].text, "hello world")
+    }
+
+    func testEmptyString() throws {
+        let tokens = try tokenize("\"\"")
+        XCTAssertEqual(tokens.map(\.kind), [.string, .eof])
+        XCTAssertEqual(tokens[0].text, "")
+    }
+
+    func testStringWithSimpleEscapes() throws {
+        let tokens = try tokenize(#""line1\nline2\ttab\"quote\\back""#)
+        XCTAssertEqual(tokens.map(\.kind), [.string, .eof])
+        XCTAssertEqual(tokens[0].text, "line1\nline2\ttab\"quote\\back")
+    }
+
+    func testStringWithBFR() throws {
+        let tokens = try tokenize(#""a\bb\fc\rd""#)
+        XCTAssertEqual(tokens[0].text, "a\u{08}b\u{0C}c\rd")
+    }
+
+    func testStringWithUnicodeBMP() throws {
+        let tokens = try tokenize(#""é""#)  // é
+        XCTAssertEqual(tokens[0].text, "\u{00E9}")
+    }
+
+    func testStringWithUnicodeSurrogatePair() throws {
+        // U+1F600 😀 encoded as surrogate pair 😀
+        let tokens = try tokenize(#""😀""#)
+        XCTAssertEqual(tokens[0].text, "\u{1F600}")
+    }
+
+    func testStringWithUnicodeExtended() throws {
+        // \U takes 6 hex digits; \U01F600 is also 😀 (U+1F600)
+        let tokens = try tokenize(#""\U01F600""#)
+        XCTAssertEqual(tokens[0].text, "\u{1F600}")
+    }
+
+    func testStringUnterminated() {
+        XCTAssertThrowsError(try tokenize("\"never ends")) { error in
+            guard error is ParseError else {
+                return XCTFail("expected ParseError, got \(error)")
+            }
+        }
+    }
+
+    func testStringUnknownEscapePassesThrough() throws {
+        // Unknown escapes (variant_parser behavior) pass through as the literal char.
+        let tokens = try tokenize(#""foo\qbar""#)
+        XCTAssertEqual(tokens[0].text, "fooqbar")
+    }
+
     // MARK: - Helper
 
     private func tokenize(_ source: String) throws -> [Token] {
