@@ -41,6 +41,33 @@ final class SceneResolverTests: XCTestCase {
         XCTAssertEqual(flat.rootScriptPath, "res://spin.gd")
     }
 
+    // MARK: - Inheritance
+
+    func testInheritanceFlattensParent() throws {
+        let parentURL = Bundle.module.url(
+            forResource: "parent.tscn", withExtension: nil,
+            subdirectory: "Fixtures/inherited"
+        )!
+        let childURL = Bundle.module.url(
+            forResource: "child.tscn", withExtension: nil,
+            subdirectory: "Fixtures/inherited"
+        )!
+        let parent = try String(contentsOf: parentURL, encoding: .utf8)
+        let child = try String(contentsOf: childURL, encoding: .utf8)
+
+        let catalogue = makeCatalogue([
+            "res://parent.tscn": parent,
+            "res://child.tscn": child,
+        ])
+        let resolver = SceneResolver(catalogue: catalogue)
+        let flat = try resolver.flatten(resourcePath: "res://child.tscn")
+
+        XCTAssertEqual(flat.rootType, "Node2D", "root type comes from inherited parent")
+        XCTAssertEqual(flat.rootNodeName, "Derived", "root name comes from child")
+        XCTAssertEqual(flat.nodes.map(\.path), [["Title"], ["Body"], ["Extra"]])
+        XCTAssertEqual(flat.nodes.map(\.type), ["Label", "StaticBody2D", "Sprite2D"])
+    }
+
     // MARK: - Helpers
 
     fileprivate func makeCatalogue(_ store: [String: String]) -> SceneCatalogue {

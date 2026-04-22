@@ -10,8 +10,19 @@ public struct SceneResolver {
         guard let root = scene.rootNode else {
             throw ResolveError.notAScene(resourcePath)
         }
+
+        // Inherited scene: root has `instance=` pointing at another scene.
+        if let instanceId = root.instance, let ext = scene.extResource(id: instanceId) {
+            let parent = try flatten(resourcePath: ext.path)
+            return try merge(
+                parent: parent,
+                child: scene,
+                childResourcePath: resourcePath,
+                childRoot: root
+            )
+        }
+
         guard let rootType = root.type else {
-            // No type — this is an inherited scene. Task 13 handles that.
             throw ResolveError.notAScene(resourcePath)
         }
 
@@ -31,6 +42,56 @@ public struct SceneResolver {
             rootType: rootType,
             rootScriptPath: try resolveScriptPath(of: root, in: scene),
             rootNodeName: root.name,
+            nodes: nodes
+        )
+    }
+
+    private func merge(
+        parent: FlatScene,
+        child: SceneFile,
+        childResourcePath: String,
+        childRoot: SceneFile.NodeEntry
+    ) throws -> FlatScene {
+        var nodes = parent.nodes
+        var pathIndex: [String: Int] = [:]
+        for (i, n) in nodes.enumerated() {
+            pathIndex[n.path.joined(separator: "/")] = i
+        }
+
+        for node in child.nodes.dropFirst() {
+            guard let parentPath = node.parentPath else { continue }
+            let pathComponents = parentPathComponents(parentPath) + [node.name]
+            let key = pathComponents.joined(separator: "/")
+
+            let flat = try makeFlatNode(node: node, path: pathComponents, scene: child)
+            if let existing = pathIndex[key] {
+                // Override: if child gave no type, keep parent's type; otherwise take child's.
+                var merged = flat
+                if node.type == nil {
+                    merged = FlatNode(
+                        path: flat.path,
+                        name: flat.name,
+                        type: nodes[existing].type,
+                        scriptPath: flat.scriptPath ?? nodes[existing].scriptPath,
+                        uniqueInOwner: flat.uniqueInOwner || nodes[existing].uniqueInOwner,
+                        groups: flat.groups.isEmpty ? nodes[existing].groups : flat.groups,
+                        instanceScenePath: flat.instanceScenePath ?? nodes[existing].instanceScenePath
+                    )
+                }
+                nodes[existing] = merged
+            } else {
+                pathIndex[key] = nodes.count
+                nodes.append(flat)
+            }
+        }
+
+        // Root comes from parent (type/script), name from child.
+        let childRootScript = try resolveScriptPath(of: childRoot, in: child)
+        return FlatScene(
+            resourcePath: childResourcePath,
+            rootType: parent.rootType,
+            rootScriptPath: childRootScript ?? parent.rootScriptPath,
+            rootNodeName: childRoot.name,
             nodes: nodes
         )
     }
