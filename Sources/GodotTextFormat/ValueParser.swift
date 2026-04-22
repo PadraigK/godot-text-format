@@ -33,6 +33,10 @@ public struct ValueParser {
             return try parseArray()
         case .leftBrace:
             return try parseDictionary()
+        case .hexColor:
+            return try parseHexColor()
+        case .ampersand:
+            return try parseStringNameShorthand()
         default:
             throw ParseError(
                 "unexpected token '\(token.text)' when expecting a value",
@@ -52,8 +56,158 @@ public struct ValueParser {
         case "nan":   advance(); return .double(.nan)
         case "-nan":  advance(); return .double(-.nan)
         default:
+            // Constructor-like: `Name(...)` or `Name[...](... )`, or bare identifier (unknown).
+            let next = peek(1)
+            if next.kind == .leftParen {
+                return try parseConstructor(name: token.text)
+            }
+            if next.kind == .leftBracket {
+                return try parseTypedContainer(name: token.text)
+            }
             throw ParseError("unknown identifier '\(token.text)'", at: token.range.start)
         }
+    }
+
+    private mutating func parseConstructor(name: String) throws -> Value {
+        advance() // consume name
+        _ = try expect(.leftParen)
+
+        switch name {
+        case "ExtResource":
+            let v = try parseValue()
+            _ = try expect(.rightParen)
+            guard case .string(let s) = v else {
+                throw ParseError("ExtResource expects a string id", at: peek().range.start)
+            }
+            return .extResource(id: s)
+        case "SubResource":
+            let v = try parseValue()
+            _ = try expect(.rightParen)
+            guard case .string(let s) = v else {
+                throw ParseError("SubResource expects a string id", at: peek().range.start)
+            }
+            return .subResource(id: s)
+        case "NodePath":
+            let v = try parseValue()
+            _ = try expect(.rightParen)
+            guard case .string(let s) = v else {
+                throw ParseError("NodePath expects a string", at: peek().range.start)
+            }
+            return .nodePath(s)
+        case "StringName":
+            let v = try parseValue()
+            _ = try expect(.rightParen)
+            guard case .string(let s) = v else {
+                throw ParseError("StringName expects a string", at: peek().range.start)
+            }
+            return .stringName(s)
+        case "Resource":
+            let v = try parseValue()
+            _ = try expect(.rightParen)
+            guard case .string(let s) = v else {
+                throw ParseError("Resource expects a path string", at: peek().range.start)
+            }
+            return .resource(path: s)
+        case "Object":
+            return try parseObjectTail()
+        default:
+            // Generic construct: parse a comma-separated list of values.
+            var args: [Value] = []
+            if peek().kind == .rightParen {
+                advance()
+                return .construct(name: name, args: args)
+            }
+            while true {
+                args.append(try parseValue())
+                let next = peek()
+                if next.kind == .comma {
+                    advance()
+                } else if next.kind == .rightParen {
+                    advance()
+                    return .construct(name: name, args: args)
+                } else {
+                    throw ParseError(
+                        "expected ',' or ')' in \(name)(...), got '\(next.text)'",
+                        at: next.range.start
+                    )
+                }
+            }
+        }
+    }
+
+    /// After `Object(`, first arg is a class-name identifier, then `, "prop": value, ...`, closed by `)`.
+    private mutating func parseObjectTail() throws -> Value {
+        let nameTok = try expect(.identifier)
+        let className = nameTok.text
+        var properties: [(String, Value)] = []
+        while peek().kind == .comma {
+            advance()
+            let keyTok = try expect(.string)
+            _ = try expect(.colon)
+            let value = try parseValue()
+            properties.append((keyTok.text, value))
+        }
+        _ = try expect(.rightParen)
+        return .object(className: className, properties: properties)
+    }
+
+    /// `Array[T](...)` and `Dictionary[K, V](...)`.
+    private mutating func parseTypedContainer(name: String) throws -> Value {
+        advance() // consume name
+        _ = try expect(.leftBracket)
+        let firstType = try expect(.identifier).text
+        var secondType: String? = nil
+        if peek().kind == .comma {
+            advance()
+            secondType = try expect(.identifier).text
+        }
+        _ = try expect(.rightBracket)
+        _ = try expect(.leftParen)
+        switch name {
+        case "Array":
+            guard secondType == nil else {
+                throw ParseError(
+                    "Array[T] takes exactly one type parameter",
+                    at: peek().range.start
+                )
+            }
+            let inner = try parseValue() // the inner [...]
+            guard case .array(let elems) = inner else {
+                throw ParseError("Array[T] expected an array body", at: peek().range.start)
+            }
+            _ = try expect(.rightParen)
+            return .typedArray(elementType: firstType, elements: elems)
+        case "Dictionary":
+            guard let v = secondType else {
+                throw ParseError(
+                    "Dictionary[K, V] requires two type parameters",
+                    at: peek().range.start
+                )
+            }
+            let inner = try parseValue() // the inner {...}
+            guard case .dictionary(let pairs) = inner else {
+                throw ParseError("Dictionary[K, V] expected a dictionary body", at: peek().range.start)
+            }
+            _ = try expect(.rightParen)
+            return .typedDictionary(keyType: firstType, valueType: v, pairs: pairs)
+        default:
+            throw ParseError("unknown typed-container name '\(name)'", at: peek().range.start)
+        }
+    }
+
+    private mutating func parseHexColor() throws -> Value {
+        let tok = try expect(.hexColor)
+        let hex = String(tok.text.dropFirst()) // drop '#'
+        guard let value = UInt32(hex, radix: 16) else {
+            throw ParseError("invalid hex color '\(tok.text)'", at: tok.range.start)
+        }
+        return .hexColor(value, hasAlpha: hex.count == 8)
+    }
+
+    private mutating func parseStringNameShorthand() throws -> Value {
+        _ = try expect(.ampersand)
+        let tok = try expect(.string)
+        return .stringName(tok.text)
     }
 
     private mutating func parseArray() throws -> Value {

@@ -123,6 +123,89 @@ final class ValueParserTests: XCTestCase {
         }
     }
 
+    // MARK: - References
+
+    func testExtResource() throws {
+        XCTAssertEqual(try parse("ExtResource(\"1_icon\")"), .extResource(id: "1_icon"))
+    }
+
+    func testSubResource() throws {
+        XCTAssertEqual(try parse("SubResource(\"anim_1\")"), .subResource(id: "anim_1"))
+    }
+
+    func testNodePath() throws {
+        XCTAssertEqual(try parse("NodePath(\"Kettle/BoilMeter\")"), .nodePath("Kettle/BoilMeter"))
+    }
+
+    func testStringNameConstructor() throws {
+        XCTAssertEqual(try parse("StringName(\"foo\")"), .stringName("foo"))
+    }
+
+    func testStringNameAmpersand() throws {
+        XCTAssertEqual(try parse("&\"foo\""), .stringName("foo"))
+    }
+
+    func testResource() throws {
+        XCTAssertEqual(try parse("Resource(\"res://foo.tres\")"), .resource(path: "res://foo.tres"))
+    }
+
+    // MARK: - Hex color
+
+    func testHexColorNoAlpha() throws {
+        XCTAssertEqual(try parse("#FFAA00"), .hexColor(0xFFAA00, hasAlpha: false))
+    }
+
+    func testHexColorWithAlpha() throws {
+        XCTAssertEqual(try parse("#FFAA0080"), .hexColor(0xFFAA0080, hasAlpha: true))
+    }
+
+    // MARK: - Generic constructors
+
+    func testVector2AsConstruct() throws {
+        XCTAssertEqual(try parse("Vector2(1, 2)"),
+            .construct(name: "Vector2", args: [.int(1), .int(2)]))
+    }
+
+    func testVector3FloatArgs() throws {
+        XCTAssertEqual(try parse("Vector3(1.0, 2.5, -3.5)"),
+            .construct(name: "Vector3", args: [.double(1.0), .double(2.5), .double(-3.5)]))
+    }
+
+    func testColorConstruct() throws {
+        XCTAssertEqual(try parse("Color(1, 0.5, 0, 1)"),
+            .construct(name: "Color", args: [.int(1), .double(0.5), .int(0), .int(1)]))
+    }
+
+    func testPackedStringArrayConstruct() throws {
+        XCTAssertEqual(try parse("PackedStringArray(\"a\", \"b\", \"c\")"),
+            .construct(name: "PackedStringArray", args: [.string("a"), .string("b"), .string("c")]))
+    }
+
+    func testRIDConstruct() throws {
+        XCTAssertEqual(try parse("RID()"), .construct(name: "RID", args: []))
+        XCTAssertEqual(try parse("RID(42)"), .construct(name: "RID", args: [.int(42)]))
+    }
+
+    // MARK: - Typed containers
+
+    func testTypedArray() throws {
+        XCTAssertEqual(try parse("Array[int]([1, 2, 3])"),
+            .typedArray(elementType: "int", elements: [.int(1), .int(2), .int(3)]))
+    }
+
+    func testTypedDictionary() throws {
+        XCTAssertEqual(try parse("Dictionary[String, int]({\"a\": 1})"),
+            .typedDictionary(keyType: "String", valueType: "int", pairs: [(.string("a"), .int(1))]))
+    }
+
+    // MARK: - Object
+
+    func testObject() throws {
+        let v = try parse("Object(MyClass, \"a\": 1, \"b\": \"two\")")
+        XCTAssertEqual(v, .object(className: "MyClass",
+            properties: [("a", .int(1)), ("b", .string("two"))]))
+    }
+
     // MARK: - Helper
 
     private func parse(_ source: String) throws -> Value {
