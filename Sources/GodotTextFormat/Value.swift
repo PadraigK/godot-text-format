@@ -1,4 +1,4 @@
-public indirect enum Value: Sendable {
+public indirect enum Value: Equatable, Sendable {
     // Atoms
     case string(String)
     case int(Int64)
@@ -33,7 +33,7 @@ public indirect enum Value: Sendable {
     case hexColor(UInt32, hasAlpha: Bool)
 }
 
-extension Value: Equatable {
+extension Value {
     public static func == (lhs: Value, rhs: Value) -> Bool {
         switch (lhs, rhs) {
         case (.string(let a), .string(let b)): return a == b

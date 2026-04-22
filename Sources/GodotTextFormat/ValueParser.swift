@@ -57,6 +57,10 @@ public struct ValueParser {
     internal func peek(_ offset: Int = 0) -> Token {
         let i = index + offset
         if i < tokens.count { return tokens[i] }
+        // Lexer always appends a real `.eof` token, so tokens.last carries
+        // the correct end-of-source location. Fall back to a synthetic only
+        // if somehow the token stream is empty.
+        if let last = tokens.last { return last }
         let eof = SourceLocation(line: 0, column: 0)
         return Token(kind: .eof, text: "", range: SourceRange(start: eof, end: eof))
     }

@@ -37,6 +37,19 @@ final class ValueParserTests: XCTestCase {
 
         guard case .double(let v3) = try parse("nan") else { return XCTFail() }
         XCTAssertTrue(v3.isNaN)
+
+        guard case .double(let v4) = try parse("-nan") else { return XCTFail() }
+        XCTAssertTrue(v4.isNaN)
+    }
+
+    func testUnknownIdentifierThrows() {
+        XCTAssertThrowsError(try parse("foo")) { error in
+            guard let parseError = error as? ParseError else {
+                return XCTFail("expected ParseError, got \(error)")
+            }
+            XCTAssertTrue(parseError.message.contains("unknown identifier"),
+                "expected 'unknown identifier' in message, got: \(parseError.message)")
+        }
     }
 
     // MARK: - Helper
