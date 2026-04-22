@@ -29,6 +29,10 @@ public struct ValueParser {
             return .double(d)
         case .identifier:
             return try parseIdentifierValue()
+        case .leftBracket:
+            return try parseArray()
+        case .leftBrace:
+            return try parseDictionary()
         default:
             throw ParseError(
                 "unexpected token '\(token.text)' when expecting a value",
@@ -49,6 +53,63 @@ public struct ValueParser {
         case "-nan":  advance(); return .double(-.nan)
         default:
             throw ParseError("unknown identifier '\(token.text)'", at: token.range.start)
+        }
+    }
+
+    private mutating func parseArray() throws -> Value {
+        _ = try expect(.leftBracket)
+        var items: [Value] = []
+        if peek().kind == .rightBracket {
+            advance()
+            return .array(items)
+        }
+        while true {
+            items.append(try parseValue())
+            let next = peek()
+            if next.kind == .comma {
+                advance()
+                if peek().kind == .rightBracket {
+                    throw ParseError("trailing comma in array", at: peek().range.start)
+                }
+            } else if next.kind == .rightBracket {
+                advance()
+                return .array(items)
+            } else {
+                throw ParseError(
+                    "expected ',' or ']' in array, got '\(next.text)'",
+                    at: next.range.start
+                )
+            }
+        }
+    }
+
+    private mutating func parseDictionary() throws -> Value {
+        _ = try expect(.leftBrace)
+        var pairs: [(Value, Value)] = []
+        if peek().kind == .rightBrace {
+            advance()
+            return .dictionary(pairs)
+        }
+        while true {
+            let key = try parseValue()
+            _ = try expect(.colon)
+            let value = try parseValue()
+            pairs.append((key, value))
+            let next = peek()
+            if next.kind == .comma {
+                advance()
+                if peek().kind == .rightBrace {
+                    throw ParseError("trailing comma in dictionary", at: peek().range.start)
+                }
+            } else if next.kind == .rightBrace {
+                advance()
+                return .dictionary(pairs)
+            } else {
+                throw ParseError(
+                    "expected ',' or '}' in dictionary, got '\(next.text)'",
+                    at: next.range.start
+                )
+            }
         }
     }
 

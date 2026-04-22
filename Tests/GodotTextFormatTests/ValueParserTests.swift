@@ -52,6 +52,71 @@ final class ValueParserTests: XCTestCase {
         }
     }
 
+    // MARK: - Containers
+
+    func testEmptyArray() throws {
+        XCTAssertEqual(try parse("[]"), .array([]))
+    }
+
+    func testFlatArray() throws {
+        XCTAssertEqual(try parse("[1, 2, 3]"), .array([.int(1), .int(2), .int(3)]))
+    }
+
+    func testMixedArray() throws {
+        XCTAssertEqual(try parse("[1, \"two\", true, null]"),
+            .array([.int(1), .string("two"), .bool(true), .null]))
+    }
+
+    func testNestedArray() throws {
+        XCTAssertEqual(try parse("[[1, 2], [3]]"),
+            .array([.array([.int(1), .int(2)]), .array([.int(3)])]))
+    }
+
+    func testArrayMultiline() throws {
+        XCTAssertEqual(try parse("[\n  1,\n  2,\n  3\n]"),
+            .array([.int(1), .int(2), .int(3)]))
+    }
+
+    func testArrayTrailingCommaRejected() {
+        XCTAssertThrowsError(try parse("[1, 2,]")) { error in
+            guard let parseError = error as? ParseError else {
+                return XCTFail("expected ParseError, got \(error)")
+            }
+            XCTAssertTrue(parseError.message.contains("trailing comma"),
+                "expected 'trailing comma' in message, got: \(parseError.message)")
+        }
+    }
+
+    func testEmptyDictionary() throws {
+        XCTAssertEqual(try parse("{}"), .dictionary([]))
+    }
+
+    func testFlatDictionary() throws {
+        XCTAssertEqual(try parse("{\"a\": 1, \"b\": 2}"),
+            .dictionary([(.string("a"), .int(1)), (.string("b"), .int(2))]))
+    }
+
+    func testDictionaryPreservesOrder() throws {
+        let v = try parse("{\"z\": 1, \"a\": 2, \"m\": 3}")
+        guard case .dictionary(let pairs) = v else { return XCTFail() }
+        XCTAssertEqual(pairs.map { $0.0 }, [.string("z"), .string("a"), .string("m")])
+    }
+
+    func testDictionaryNestedValue() throws {
+        XCTAssertEqual(try parse("{\"outer\": {\"inner\": 42}}"),
+            .dictionary([(.string("outer"), .dictionary([(.string("inner"), .int(42))]))]))
+    }
+
+    func testDictionaryNonStringKey() throws {
+        // Numeric keys are legal Variant dicts.
+        XCTAssertEqual(try parse("{1: \"one\", 2: \"two\"}"),
+            .dictionary([(.int(1), .string("one")), (.int(2), .string("two"))]))
+    }
+
+    func testDictionaryTrailingCommaRejected() {
+        XCTAssertThrowsError(try parse("{\"a\": 1,}"))
+    }
+
     // MARK: - Helper
 
     private func parse(_ source: String) throws -> Value {
