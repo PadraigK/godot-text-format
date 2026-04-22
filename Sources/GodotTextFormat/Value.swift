@@ -1,3 +1,16 @@
+/// The type parameter in a typed container (`Array[T]` or `Dictionary[K, V]`).
+///
+/// In real Godot scenes the type slot can be either a bare type name
+/// (`int`, `String`, a user-defined class name) or an `ExtResource("id")`
+/// reference that points at a script which declares a custom class.
+public enum TypedContainerType: Equatable, Sendable {
+    /// A bare identifier — built-in types (`int`, `float`, `String`, `Variant`)
+    /// or user class names.
+    case named(String)
+    /// An `ExtResource("id")` reference (a Script declaring a custom class).
+    case extResource(id: String)
+}
+
 public indirect enum Value: Equatable, Sendable {
     // Atoms
     case string(String)
@@ -24,10 +37,10 @@ public indirect enum Value: Equatable, Sendable {
     case object(className: String, properties: [(String, Value)])
 
     // Array[T]([...]) typed array
-    case typedArray(elementType: String, elements: [Value])
+    case typedArray(elementType: TypedContainerType, elements: [Value])
 
     // Dictionary[K, V]({...}) typed dictionary
-    case typedDictionary(keyType: String, valueType: String, pairs: [(Value, Value)])
+    case typedDictionary(keyType: TypedContainerType, valueType: TypedContainerType, pairs: [(Value, Value)])
 
     // Hex color literal #RRGGBB / #RRGGBBAA
     case hexColor(UInt32, hasAlpha: Bool)

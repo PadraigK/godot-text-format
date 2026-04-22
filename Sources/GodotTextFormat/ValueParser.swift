@@ -163,15 +163,40 @@ public struct ValueParser {
         return .object(className: className, properties: properties)
     }
 
+    /// Parses a single type-parameter slot inside `[...]`.
+    ///
+    /// Accepts either a bare identifier (`.named`) or an `ExtResource("id")`
+    /// call (`.extResource`). Real Godot scenes use the latter when the element
+    /// type is a script-declared custom class.
+    private mutating func parseTypeSlot() throws -> TypedContainerType {
+        let token = peek()
+        // Bare identifier not followed by `(` → a plain type name (.named).
+        // An identifier followed by `(` must be a constructor call — the only
+        // legal form here is ExtResource("id"), so fall through to parseValue().
+        if token.kind == .identifier && peek(1).kind != .leftParen {
+            advance()
+            return .named(token.text)
+        }
+        // Try parsing a full value — the only other legal form is ExtResource("id").
+        let v = try parseValue()
+        if case .extResource(let id) = v {
+            return .extResource(id: id)
+        }
+        throw ParseError(
+            "expected type name or ExtResource in typed-container type slot, got \(v)",
+            at: token.range.start
+        )
+    }
+
     /// `Array[T](...)` and `Dictionary[K, V](...)`.
     private mutating func parseTypedContainer(name: String) throws -> Value {
         advance() // consume name
         _ = try expect(.leftBracket)
-        let firstType = try expect(.identifier).text
-        var secondType: String? = nil
+        let firstType = try parseTypeSlot()
+        var secondType: TypedContainerType? = nil
         if peek().kind == .comma {
             advance()
-            secondType = try expect(.identifier).text
+            secondType = try parseTypeSlot()
         }
         _ = try expect(.rightBracket)
         _ = try expect(.leftParen)

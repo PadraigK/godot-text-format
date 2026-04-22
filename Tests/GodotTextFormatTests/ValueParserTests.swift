@@ -190,12 +190,30 @@ final class ValueParserTests: XCTestCase {
 
     func testTypedArray() throws {
         XCTAssertEqual(try parse("Array[int]([1, 2, 3])"),
-            .typedArray(elementType: "int", elements: [.int(1), .int(2), .int(3)]))
+            .typedArray(elementType: .named("int"), elements: [.int(1), .int(2), .int(3)]))
     }
 
     func testTypedDictionary() throws {
         XCTAssertEqual(try parse("Dictionary[String, int]({\"a\": 1})"),
-            .typedDictionary(keyType: "String", valueType: "int", pairs: [(.string("a"), .int(1))]))
+            .typedDictionary(keyType: .named("String"), valueType: .named("int"), pairs: [(.string("a"), .int(1))]))
+    }
+
+    func testTypedArrayWithExtResourceType() throws {
+        XCTAssertEqual(
+            try parse(#"Array[ExtResource("2_u5sy4")]([1, 2])"#),
+            .typedArray(elementType: .extResource(id: "2_u5sy4"), elements: [.int(1), .int(2)])
+        )
+    }
+
+    func testTypedDictionaryWithExtResourceKey() throws {
+        XCTAssertEqual(
+            try parse(#"Dictionary[ExtResource("k"), int]({"a": 1})"#),
+            .typedDictionary(
+                keyType: .extResource(id: "k"),
+                valueType: .named("int"),
+                pairs: [(.string("a"), .int(1))]
+            )
+        )
     }
 
     // MARK: - Object
