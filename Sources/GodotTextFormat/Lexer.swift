@@ -36,14 +36,39 @@ public struct Lexer {
         case ":": advance(); return make(.colon, ":", from: start)
         case ",": advance(); return make(.comma, ",", from: start)
         case ".":
-            // Disambiguated from a number later (numbers are Task 4);
-            // for now, a bare '.' followed by a digit will be handled
-            // when numbers land.
+            // `.5`-style floats start with a period; dispatch to readNumber
+            // when followed by a digit. Otherwise emit a bare `.period` token
+            // (used for dotted section kind names like `gd_scene.Android`).
+            if let next = peek(1), next.isNumber {
+                return try readNumber(from: start)
+            }
             advance()
             return make(.period, ".", from: start)
         case "&": advance(); return make(.ampersand, "&", from: start)
         case "#": return try readHexColor(from: start)
+        case "-":
+            if let next = peek(1) {
+                if next.isNumber || next == "." {
+                    return try readNumber(from: start)
+                }
+                if next.isLetter {
+                    // `-inf`, `-nan` etc. — produce a single identifier token
+                    // whose text includes the leading `-`. The ValueParser
+                    // interprets these at the value level.
+                    advance() // consume '-'
+                    var text = "-"
+                    while let ch = peek(), ch.isLetter || ch.isNumber || ch == "_" {
+                        text.append(ch)
+                        advance()
+                    }
+                    return make(.identifier, text, from: start)
+                }
+            }
+            throw ParseError("stray '-' is not allowed", at: start)
         default:
+            if ch.isNumber {
+                return try readNumber(from: start)
+            }
             if ch.isLetter || ch == "_" {
                 return readIdentifier(from: start)
             }
@@ -101,6 +126,63 @@ public struct Lexer {
             advance()
         }
         return make(.identifier, text, from: start)
+    }
+
+    // MARK: - Numbers
+
+    private mutating func readNumber(from start: SourceLocation) throws -> Token {
+        var text = ""
+        var isDouble = false
+
+        // Optional leading '-'
+        if peek() == "-" {
+            text.append("-")
+            advance()
+        }
+
+        // Integer part (may be empty if starting with '.')
+        while let ch = peek(), ch.isNumber {
+            text.append(ch)
+            advance()
+        }
+
+        // Fractional part
+        if peek() == "." {
+            isDouble = true
+            text.append(".")
+            advance()
+            while let ch = peek(), ch.isNumber {
+                text.append(ch)
+                advance()
+            }
+        }
+
+        // Exponent
+        if let e = peek(), e == "e" || e == "E" {
+            isDouble = true
+            text.append(e)
+            advance()
+            if let sign = peek(), sign == "+" || sign == "-" {
+                text.append(sign)
+                advance()
+            }
+            var exponentDigits = 0
+            while let ch = peek(), ch.isNumber {
+                text.append(ch)
+                advance()
+                exponentDigits += 1
+            }
+            guard exponentDigits > 0 else {
+                throw ParseError("missing digits after exponent marker", at: start)
+            }
+        }
+
+        // Reject literals that contain no digits at all (e.g. "-", "-.", ".")
+        if text == "-" || text == "." || text == "-." {
+            throw ParseError("malformed number literal '\(text)'", at: start)
+        }
+
+        return make(isDouble ? .double : .integer, text, from: start)
     }
 
     // MARK: - Hex color

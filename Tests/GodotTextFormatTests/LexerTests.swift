@@ -89,6 +89,69 @@ final class LexerTests: XCTestCase {
         XCTAssertEqual(tokens[1].range.start, SourceLocation(line: 2, column: 3))
     }
 
+    // MARK: - Numbers
+
+    func testIntegerPositive() throws {
+        let tokens = try tokenize("42")
+        XCTAssertEqual(tokens.map(\.kind), [.integer, .eof])
+        XCTAssertEqual(tokens[0].text, "42")
+    }
+
+    func testIntegerNegative() throws {
+        let tokens = try tokenize("-17")
+        XCTAssertEqual(tokens.map(\.kind), [.integer, .eof])
+        XCTAssertEqual(tokens[0].text, "-17")
+    }
+
+    func testDoubleWithDecimalPoint() throws {
+        let tokens = try tokenize("3.14")
+        XCTAssertEqual(tokens.map(\.kind), [.double, .eof])
+        XCTAssertEqual(tokens[0].text, "3.14")
+    }
+
+    func testDoubleStartingWithDecimalPoint() throws {
+        let tokens = try tokenize(".5")
+        XCTAssertEqual(tokens.map(\.kind), [.double, .eof])
+        XCTAssertEqual(tokens[0].text, ".5")
+    }
+
+    func testDoubleEndingWithDecimalPoint() throws {
+        let tokens = try tokenize("5.")
+        XCTAssertEqual(tokens.map(\.kind), [.double, .eof])
+        XCTAssertEqual(tokens[0].text, "5.")
+    }
+
+    func testDoubleWithExponent() throws {
+        let tokens = try tokenize("1e9 2.5e-3 -1E+2")
+        XCTAssertEqual(tokens.map(\.kind), [.double, .double, .double, .eof])
+        XCTAssertEqual(tokens.map(\.text), ["1e9", "2.5e-3", "-1E+2", ""])
+    }
+
+    func testNegativeDouble() throws {
+        let tokens = try tokenize("-3.14")
+        XCTAssertEqual(tokens.map(\.kind), [.double, .eof])
+        XCTAssertEqual(tokens[0].text, "-3.14")
+    }
+
+    func testPeriodBetweenIdentifiersIsAPeriod() throws {
+        // e.g. "gd_scene.Android" (platform-variant section name)
+        let tokens = try tokenize("gd_scene.Android")
+        XCTAssertEqual(tokens.map(\.kind), [.identifier, .period, .identifier, .eof])
+    }
+
+    func testNegativeInfAsIdentifier() throws {
+        // "-inf" becomes a single identifier token so the ValueParser can map it to .double(-.infinity).
+        let tokens = try tokenize("-inf")
+        XCTAssertEqual(tokens.map(\.kind), [.identifier, .eof])
+        XCTAssertEqual(tokens[0].text, "-inf")
+    }
+
+    func testStrayMinusThrows() {
+        XCTAssertThrowsError(try tokenize("-"))
+        XCTAssertThrowsError(try tokenize("- "))
+        XCTAssertThrowsError(try tokenize("-+"))
+    }
+
     // MARK: - Helper
 
     private func tokenize(_ source: String) throws -> [Token] {
