@@ -1,5 +1,3 @@
-import Foundation
-
 public struct SourceLocation: Hashable, Sendable {
     public let line: Int
     public let column: Int
@@ -11,6 +9,7 @@ public struct SourceLocation: Hashable, Sendable {
 
 public struct SourceRange: Hashable, Sendable {
     public let start: SourceLocation
+    /// One-past-the-last-character end position (exclusive upper bound).
     public let end: SourceLocation
     public init(start: SourceLocation, end: SourceLocation) {
         self.start = start
