@@ -10,14 +10,15 @@ public struct Lexer {
 
     public mutating func tokenize() throws -> [Token] {
         var tokens: [Token] = []
-        while let token = try nextToken() {
+        while true {
+            let token = try nextToken()
             tokens.append(token)
             if token.kind == .eof { break }
         }
         return tokens
     }
 
-    private mutating func nextToken() throws -> Token? {
+    private mutating func nextToken() throws -> Token {
         skipWhitespaceAndComments()
         let start = currentLocation()
         guard let ch = peek() else {
@@ -34,7 +35,12 @@ public struct Lexer {
         case "=": advance(); return make(.equals, "=", from: start)
         case ":": advance(); return make(.colon, ":", from: start)
         case ",": advance(); return make(.comma, ",", from: start)
-        case ".": advance(); return make(.period, ".", from: start)
+        case ".":
+            // Disambiguated from a number later (numbers are Task 4);
+            // for now, a bare '.' followed by a digit will be handled
+            // when numbers land.
+            advance()
+            return make(.period, ".", from: start)
         case "&": advance(); return make(.ampersand, "&", from: start)
         case "#": return try readHexColor(from: start)
         default:

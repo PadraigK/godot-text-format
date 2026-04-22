@@ -26,6 +26,12 @@ final class LexerTests: XCTestCase {
         ])
     }
 
+    func testPunctuationTokenRange() throws {
+        let tokens = try tokenize("[")
+        XCTAssertEqual(tokens[0].range.start, SourceLocation(line: 1, column: 1))
+        XCTAssertEqual(tokens[0].range.end, SourceLocation(line: 1, column: 2))
+    }
+
     func testIdentifierSimple() throws {
         let tokens = try tokenize("foo bar_baz Quux123")
         XCTAssertEqual(tokens.map(\.kind), [.identifier, .identifier, .identifier, .eof])
@@ -66,7 +72,12 @@ final class LexerTests: XCTestCase {
     }
 
     func testHexColorWrongLengthThrows() {
-        XCTAssertThrowsError(try tokenize("#FFAA"))  // 4 digits is invalid
+        XCTAssertThrowsError(try tokenize("#FFAA")) { err in
+            guard let parseError = err as? ParseError else {
+                return XCTFail("expected ParseError, got \(err)")
+            }
+            XCTAssertEqual(parseError.location, SourceLocation(line: 1, column: 1))
+        }
     }
 
     // MARK: - Source locations
