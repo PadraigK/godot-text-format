@@ -68,6 +68,22 @@ final class SectionParserTests: XCTestCase {
         XCTAssertEqual(pairs.map { $0.0 }, [.string("explode"), .string("idle")])
     }
 
+    func testSectionWithAttrsAndMultilineBody() throws {
+        let src = """
+        [sub_resource type="AnimationLibrary" id="lib_1" load_steps=2]
+        _data = {
+        "explode": SubResource("anim_1"),
+        "idle": SubResource("anim_2")
+        }
+        resource_name = "combat"
+        """
+        let sections = try parseSections(src)
+        XCTAssertEqual(sections.count, 1)
+        XCTAssertEqual(sections[0].attrs.map(\.0), ["type", "id", "load_steps"])
+        XCTAssertEqual(sections[0].body.map(\.0), ["_data", "resource_name"])
+        XCTAssertEqual(sections[0].body[1].1, .string("combat"))
+    }
+
     func testBodyStopsAtNextHeader() throws {
         let src = """
         [a]

@@ -37,7 +37,7 @@ public struct SectionParser {
             }
             advance()
             _ = try expect(.equals)
-            var valueParser = ValueParser(tokens: tailTokensFromHere())
+            var valueParser = ValueParser(tokens: tokens, startingAt: index)
             let value = try valueParser.parseValue()
             index += valueParser.consumedCount
             attrs.append((keyTok.text, value))
@@ -50,7 +50,7 @@ public struct SectionParser {
             let keyTok = peek()
             advance()
             _ = try expect(.equals)
-            var valueParser = ValueParser(tokens: tailTokensFromHere())
+            var valueParser = ValueParser(tokens: tokens, startingAt: index)
             let value = try valueParser.parseValue()
             index += valueParser.consumedCount
             body.append((keyTok.text, value))
@@ -101,9 +101,5 @@ public struct SectionParser {
         return token
     }
 
-    /// Returns the un-consumed token slice as a new Array. Used when handing
-    /// off to a nested `ValueParser`; we sync back via `valueParser.consumedCount`.
-    private func tailTokensFromHere() -> [Token] {
-        Array(tokens[index...])
-    }
+
 }

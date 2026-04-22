@@ -1,13 +1,17 @@
 public struct ValueParser {
     private let tokens: [Token]
-    private var index: Int = 0
+    private let startIndex: Int
+    private var index: Int
 
-    public init(tokens: [Token]) {
+    public init(tokens: [Token], startingAt start: Int = 0) {
         self.tokens = tokens
+        self.startIndex = start
+        self.index = start
     }
 
-    /// Position in the token stream. Used by SectionParser to resume after a value.
-    public var consumedCount: Int { index }
+    /// Number of tokens consumed relative to the starting index.
+    /// SectionParser uses this to advance its own cursor after a call to parseValue().
+    public var consumedCount: Int { index - startIndex }
 
     public mutating func parseValue() throws -> Value {
         let token = peek()
