@@ -220,6 +220,11 @@ public struct Lexer {
                     let scalar = try readUnicodeEscape(digits: 4)
                     if let pair = try handleSurrogate(scalar) {
                         decoded.append(pair)
+                    } else if (0xDC00...0xDFFF).contains(scalar) {
+                        throw ParseError(
+                            "unpaired low surrogate \\u\(String(scalar, radix: 16, uppercase: true))",
+                            at: currentLocation()
+                        )
                     } else if let s = Unicode.Scalar(scalar) {
                         decoded.append(Character(s))
                     }

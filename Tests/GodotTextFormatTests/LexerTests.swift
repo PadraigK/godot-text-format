@@ -202,6 +202,17 @@ final class LexerTests: XCTestCase {
         XCTAssertEqual(tokens[0].text, "smile\u{1F600}")
     }
 
+    func testStringLoneLowSurrogateThrows() {
+        // \uDC00 alone is an unpaired low surrogate — Godot's variant_parser rejects it.
+        XCTAssertThrowsError(try tokenize(#""\uDC00""#)) { error in
+            guard let parseError = error as? ParseError else {
+                return XCTFail("expected ParseError, got \(error)")
+            }
+            XCTAssertTrue(parseError.message.contains("low surrogate"),
+                "error message should mention low surrogate, got: \(parseError.message)")
+        }
+    }
+
     func testStringWithUnicodeExtended() throws {
         // \U takes 6 hex digits; \U01F600 is also 😀 (U+1F600)
         let tokens = try tokenize(#""\U01F600""#)
