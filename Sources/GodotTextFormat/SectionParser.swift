@@ -8,6 +8,27 @@ public struct SectionParser {
 
     public mutating func parseDocument() throws -> [Section] {
         var sections: [Section] = []
+        // Anonymous preamble: `key = value` lines before any `[` header.
+        // Used by project.godot for `config_version = 5`.
+        var preambleBody: [(String, Value)] = []
+        while peek().kind == .identifier {
+            let keyTok = peek()
+            advance()
+            _ = try expect(.equals)
+            var valueParser = ValueParser(tokens: tokens, startingAt: index)
+            let value = try valueParser.parseValue()
+            index += valueParser.consumedCount
+            preambleBody.append((keyTok.text, value))
+        }
+        if !preambleBody.isEmpty {
+            let origin = SourceLocation(line: 1, column: 1)
+            sections.append(Section(
+                kind: "",
+                attrs: [],
+                body: preambleBody,
+                headerRange: SourceRange(start: origin, end: origin)
+            ))
+        }
         while peek().kind != .eof {
             sections.append(try parseSection())
         }

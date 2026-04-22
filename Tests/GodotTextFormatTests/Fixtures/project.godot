@@ -1,0 +1,21 @@
+config_version=5
+
+[application]
+config/name="TestGame"
+run/main_scene="res://main.tscn"
+
+[input]
+jump={
+"deadzone": 0.5,
+"events": [Object(InputEventKey, "keycode": 32)]
+}
+fire={
+"deadzone": 0.5,
+"events": []
+}
+
+[input.macos]
+cmd_quit={
+"deadzone": 0.5,
+"events": []
+}

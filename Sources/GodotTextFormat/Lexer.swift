@@ -123,7 +123,7 @@ public struct Lexer {
 
     private mutating func readIdentifier(from start: SourceLocation) -> Token {
         var text = ""
-        while let ch = peek(), ch.isLetter || ch.isNumber || ch == "_" {
+        while let ch = peek(), ch.isLetter || ch.isNumber || ch == "_" || ch == "/" {
             text.append(ch)
             advance()
         }

@@ -1,0 +1,17 @@
+[gd_scene format=3 uid="uid://abc"]
+
+[ext_resource type="Texture2D" uid="uid://xyz" path="res://icon.svg" id="2_icon"]
+[ext_resource type="Script" path="res://spinner.gd" id="1_spin"]
+
+[sub_resource type="CircleShape2D" id="shape_1"]
+radius = 16.0
+
+[node name="Main" type="Node2D"]
+
+[node name="Spinner" type="Sprite2D" parent="."]
+position = Vector2(576, 324)
+texture = ExtResource("2_icon")
+script = ExtResource("1_spin")
+
+[node name="Body" type="StaticBody2D" parent="Spinner"]
+collision_layer = 3
