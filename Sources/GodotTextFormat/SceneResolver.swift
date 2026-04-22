@@ -6,16 +6,16 @@ public struct SceneResolver {
     }
 
     public func flatten(resourcePath: String) throws -> FlatScene {
-        var visiting: Set<String> = []
+        var visiting: [String] = []
         return try flattenImpl(resourcePath: resourcePath, visiting: &visiting)
     }
 
-    private func flattenImpl(resourcePath: String, visiting: inout Set<String>) throws -> FlatScene {
-        if visiting.contains(resourcePath) {
-            throw ResolveError.cyclicInheritance(path: Array(visiting) + [resourcePath])
+    private func flattenImpl(resourcePath: String, visiting: inout [String]) throws -> FlatScene {
+        if let idx = visiting.firstIndex(of: resourcePath) {
+            throw ResolveError.cyclicInheritance(path: Array(visiting[idx...]) + [resourcePath])
         }
-        visiting.insert(resourcePath)
-        defer { visiting.remove(resourcePath) }
+        visiting.append(resourcePath)
+        defer { visiting.removeLast() }
 
         let scene = try catalogue.sceneFile(at: resourcePath)
         guard let root = scene.rootNode else {
