@@ -188,6 +188,20 @@ final class LexerTests: XCTestCase {
         XCTAssertEqual(tokens[0].text, "\u{1F600}")
     }
 
+    func testStringWithUnicodeBMPEscape() throws {
+        // é → é (U+00E9) via the 4-digit BMP escape path.
+        let tokens = try tokenize("\"hello\\u00E9world\"")
+        XCTAssertEqual(tokens.map(\.kind), [.string, .eof])
+        XCTAssertEqual(tokens[0].text, "hello\u{00E9}world")
+    }
+
+    func testStringWithUnicodeSurrogatePairEscape() throws {
+        // 😀 → 😀 (U+1F600) via UTF-16 surrogate pair combination 😀.
+        let tokens = try tokenize("\"smile\\uD83D\\uDE00\"")
+        XCTAssertEqual(tokens.map(\.kind), [.string, .eof])
+        XCTAssertEqual(tokens[0].text, "smile\u{1F600}")
+    }
+
     func testStringWithUnicodeExtended() throws {
         // \U takes 6 hex digits; \U01F600 is also 😀 (U+1F600)
         let tokens = try tokenize(#""\U01F600""#)
