@@ -206,6 +206,30 @@ final class ValueParserTests: XCTestCase {
             properties: [("a", .int(1)), ("b", .string("two"))]))
     }
 
+    func testObjectNoProperties() throws {
+        // Godot's writer always emits "Object(ClassName," even for zero-property objects.
+        let v = try parse("Object(MyClass,)")
+        XCTAssertEqual(v, .object(className: "MyClass", properties: []))
+    }
+
+    func testExtResourceWrongArgTypeThrows() {
+        XCTAssertThrowsError(try parse("ExtResource(42)")) { error in
+            guard let parseError = error as? ParseError else {
+                return XCTFail("expected ParseError, got \(error)")
+            }
+            XCTAssertTrue(parseError.message.contains("string"),
+                "expected 'string' in message, got: \(parseError.message)")
+        }
+    }
+
+    func testTypedArrayWithTwoTypeParamsThrows() {
+        XCTAssertThrowsError(try parse("Array[int, float]([1, 2])"))
+    }
+
+    func testTypedDictionaryWithOneTypeParamThrows() {
+        XCTAssertThrowsError(try parse("Dictionary[String]({\"a\": 1})"))
+    }
+
     // MARK: - Helper
 
     private func parse(_ source: String) throws -> Value {

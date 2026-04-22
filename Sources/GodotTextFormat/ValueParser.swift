@@ -74,38 +74,43 @@ public struct ValueParser {
 
         switch name {
         case "ExtResource":
+            let argStart = peek().range.start
             let v = try parseValue()
             _ = try expect(.rightParen)
             guard case .string(let s) = v else {
-                throw ParseError("ExtResource expects a string id", at: peek().range.start)
+                throw ParseError("ExtResource expects a string id", at: argStart)
             }
             return .extResource(id: s)
         case "SubResource":
+            let argStart = peek().range.start
             let v = try parseValue()
             _ = try expect(.rightParen)
             guard case .string(let s) = v else {
-                throw ParseError("SubResource expects a string id", at: peek().range.start)
+                throw ParseError("SubResource expects a string id", at: argStart)
             }
             return .subResource(id: s)
         case "NodePath":
+            let argStart = peek().range.start
             let v = try parseValue()
             _ = try expect(.rightParen)
             guard case .string(let s) = v else {
-                throw ParseError("NodePath expects a string", at: peek().range.start)
+                throw ParseError("NodePath expects a string", at: argStart)
             }
             return .nodePath(s)
         case "StringName":
+            let argStart = peek().range.start
             let v = try parseValue()
             _ = try expect(.rightParen)
             guard case .string(let s) = v else {
-                throw ParseError("StringName expects a string", at: peek().range.start)
+                throw ParseError("StringName expects a string", at: argStart)
             }
             return .stringName(s)
         case "Resource":
+            let argStart = peek().range.start
             let v = try parseValue()
             _ = try expect(.rightParen)
             guard case .string(let s) = v else {
-                throw ParseError("Resource expects a path string", at: peek().range.start)
+                throw ParseError("Resource expects a path string", at: argStart)
             }
             return .resource(path: s)
         case "Object":
@@ -142,6 +147,9 @@ public struct ValueParser {
         var properties: [(String, Value)] = []
         while peek().kind == .comma {
             advance()
+            // Godot's writer always emits "Object(ClassName," even for zero-property
+            // objects (variant_parser.cpp:2215), so a ',' followed by ')' is legal.
+            if peek().kind == .rightParen { break }
             let keyTok = try expect(.string)
             _ = try expect(.colon)
             let value = try parseValue()
