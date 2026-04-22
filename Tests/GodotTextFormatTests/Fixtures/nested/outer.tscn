@@ -1,0 +1,9 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://inner.tscn" id="1_inner"]
+
+[node name="Outer" type="Node2D"]
+
+[node name="NestedInstance" parent="." instance=ExtResource("1_inner")]
+
+[node name="OuterLabel" type="Label" parent="."]

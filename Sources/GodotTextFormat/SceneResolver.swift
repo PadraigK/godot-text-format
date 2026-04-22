@@ -6,6 +6,17 @@ public struct SceneResolver {
     }
 
     public func flatten(resourcePath: String) throws -> FlatScene {
+        var visiting: Set<String> = []
+        return try flattenImpl(resourcePath: resourcePath, visiting: &visiting)
+    }
+
+    private func flattenImpl(resourcePath: String, visiting: inout Set<String>) throws -> FlatScene {
+        if visiting.contains(resourcePath) {
+            throw ResolveError.cyclicInheritance(path: Array(visiting) + [resourcePath])
+        }
+        visiting.insert(resourcePath)
+        defer { visiting.remove(resourcePath) }
+
         let scene = try catalogue.sceneFile(at: resourcePath)
         guard let root = scene.rootNode else {
             throw ResolveError.notAScene(resourcePath)
@@ -13,7 +24,7 @@ public struct SceneResolver {
 
         // Inherited scene: root has `instance=` pointing at another scene.
         if let instanceId = root.instance, let ext = scene.extResource(id: instanceId) {
-            let parent = try flatten(resourcePath: ext.path)
+            let parent = try flattenImpl(resourcePath: ext.path, visiting: &visiting)
             return try merge(
                 parent: parent,
                 child: scene,
@@ -112,8 +123,9 @@ public struct SceneResolver {
         var type = node.type ?? "Node"
         if let instanceId = node.instance, let ext = scene.extResource(id: instanceId) {
             instancePath = ext.path
-            // Nested instance boundary — type comes from the instanced scene's root.
-            // Task 14 locks this behavior in; for now we resolve type if we can.
+            // Nested scene instances are opaque boundaries — we resolve the root
+            // type of the instanced scene (so the accessor type is correct) but
+            // do NOT recurse into its children. Per project convention.
             let inner = try catalogue.sceneFile(at: ext.path)
             if let t = inner.rootNode?.type {
                 type = t

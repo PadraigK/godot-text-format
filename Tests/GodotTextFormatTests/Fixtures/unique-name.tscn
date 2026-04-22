@@ -1,0 +1,7 @@
+[gd_scene format=3]
+
+[node name="Root" type="Node2D"]
+
+[node name="Deep" type="Label" parent="."]
+[node name="UsefulChild" type="Sprite2D" parent="Deep"]
+unique_name_in_owner = true

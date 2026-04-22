@@ -68,6 +68,62 @@ final class SceneResolverTests: XCTestCase {
         XCTAssertEqual(flat.nodes.map(\.type), ["Label", "StaticBody2D", "Sprite2D"])
     }
 
+    // MARK: - Nested instance boundary
+
+    func testNestedInstanceIsBoundary() throws {
+        let outer = try String(contentsOf:
+            Bundle.module.url(forResource: "outer.tscn", withExtension: nil, subdirectory: "Fixtures/nested")!,
+            encoding: .utf8)
+        let inner = try String(contentsOf:
+            Bundle.module.url(forResource: "inner.tscn", withExtension: nil, subdirectory: "Fixtures/nested")!,
+            encoding: .utf8)
+        let catalogue = makeCatalogue([
+            "res://outer.tscn": outer,
+            "res://inner.tscn": inner,
+        ])
+        let flat = try SceneResolver(catalogue: catalogue).flatten(resourcePath: "res://outer.tscn")
+        // NestedInstance appears, but InnerLabel (child of the instanced scene) must NOT.
+        XCTAssertEqual(flat.nodes.map(\.path), [["NestedInstance"], ["OuterLabel"]])
+        XCTAssertEqual(flat.nodes.map(\.type), ["Control", "Label"])
+        XCTAssertEqual(flat.nodes[0].instanceScenePath, "res://inner.tscn")
+        XCTAssertNil(flat.nodes[1].instanceScenePath)
+    }
+
+    // MARK: - Unique name in owner
+
+    func testUniqueNameInOwnerFlag() throws {
+        let text = try String(contentsOf:
+            Bundle.module.url(forResource: "unique-name.tscn", withExtension: nil, subdirectory: "Fixtures")!,
+            encoding: .utf8)
+        let catalogue = makeCatalogue(["res://unique.tscn": text])
+        let flat = try SceneResolver(catalogue: catalogue).flatten(resourcePath: "res://unique.tscn")
+        let useful = flat.nodes.first(where: { $0.name == "UsefulChild" })
+        XCTAssertNotNil(useful)
+        XCTAssertTrue(useful?.uniqueInOwner ?? false)
+    }
+
+    // MARK: - Cycle detection
+
+    func testCyclicInheritanceIsDetected() throws {
+        let a = """
+        [gd_scene format=3]
+        [ext_resource type="PackedScene" path="res://b.tscn" id="1"]
+        [node name="A" instance=ExtResource("1")]
+        """
+        let b = """
+        [gd_scene format=3]
+        [ext_resource type="PackedScene" path="res://a.tscn" id="1"]
+        [node name="B" instance=ExtResource("1")]
+        """
+        let catalogue = makeCatalogue(["res://a.tscn": a, "res://b.tscn": b])
+        let resolver = SceneResolver(catalogue: catalogue)
+        XCTAssertThrowsError(try resolver.flatten(resourcePath: "res://a.tscn")) { error in
+            guard case ResolveError.cyclicInheritance = error else {
+                return XCTFail("expected .cyclicInheritance, got \(error)")
+            }
+        }
+    }
+
     // MARK: - Helpers
 
     fileprivate func makeCatalogue(_ store: [String: String]) -> SceneCatalogue {
