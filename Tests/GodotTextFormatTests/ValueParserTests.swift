@@ -114,7 +114,13 @@ final class ValueParserTests: XCTestCase {
     }
 
     func testDictionaryTrailingCommaRejected() {
-        XCTAssertThrowsError(try parse("{\"a\": 1,}"))
+        XCTAssertThrowsError(try parse("{\"a\": 1,}")) { error in
+            guard let parseError = error as? ParseError else {
+                return XCTFail("expected ParseError, got \(error)")
+            }
+            XCTAssertTrue(parseError.message.contains("trailing comma"),
+                "expected 'trailing comma' in message, got: \(parseError.message)")
+        }
     }
 
     // MARK: - Helper
