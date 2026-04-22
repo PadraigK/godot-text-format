@@ -81,28 +81,26 @@ final class SceneFileTests: XCTestCase {
         XCTAssertEqual(enemy?.groups, ["enemies", "dangerous"])
     }
 
-    // MARK: - Known-broken: TileSet body keys
+    // MARK: - TileSet body keys
 
-    // Real user fixture — TileSet sub-resources in Godot 4 use property keys
-    // like `0:0/animation_columns`, `sources/0`, `0:0/0`. These start with a
-    // digit and/or contain `:`, which our current Lexer body-key identifier
-    // rule doesn't accept. Godot's own variant_parser.cpp treats body-key
-    // property names as essentially any-non-whitespace-non-`=` chars.
-    //
-    // This test pins the current (broken) behavior: it expects a parse error.
-    // When the lexer is fixed to accept permissive body-key names, flip this
-    // test to assert successful parse + expected node tree.
-    func testTileSetBodyKeysCurrentlyFailToLex() throws {
+    // Real user fixture exercising Godot TileSet sub_resources with exotic
+    // property keys like `0:0/animation_columns`, `sources/0`, `0:0/0`.
+    // The Lexer extends a digit-started number token at body-key position
+    // (line-start, bracket-depth 0) when non-whitespace/non-`=` characters
+    // follow — so the whole key becomes one identifier token.
+    func testTileSetBodyKeysParseSuccessfully() throws {
         let url = Bundle.module.url(forResource: "tileset-keys-background.tscn",
             withExtension: nil, subdirectory: "Fixtures")!
         let text = try String(contentsOf: url, encoding: .utf8)
-        XCTAssertThrowsError(try SceneFile.parse(text)) { error in
-            guard let parseError = error as? ParseError else {
-                return XCTFail("expected ParseError, got \(error)")
-            }
-            XCTAssertTrue(parseError.message.contains("unexpected character '/'"),
-                "expected '/' character error, got: \(parseError.message)")
-        }
+        let scene = try SceneFile.parse(text)
+        XCTAssertEqual(scene.format, 4)
+        XCTAssertEqual(scene.rootNode?.name, "Background01")
+        XCTAssertEqual(scene.rootNode?.type, "Node2D")
+        // Spot-check a TileSet sub_resource and confirm a body key with `0:0/...`
+        // was captured with the correct value.
+        let tileSetAtlas = scene.subResource(id: "TileSetAtlasSource_62kj7")
+        XCTAssertNotNil(tileSetAtlas)
+        XCTAssertEqual(tileSetAtlas?.prop("0:0/animation_columns"), .int(4))
     }
 
     private func loadScene(named name: String) throws -> SceneFile {

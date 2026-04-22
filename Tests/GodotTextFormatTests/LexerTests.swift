@@ -245,6 +245,78 @@ final class LexerTests: XCTestCase {
         XCTAssertEqual(tokens[0].text, "fooqbar")
     }
 
+    // MARK: - Permissive body-key lexing
+
+    func testBodyKeyWithLeadingDigitAndColon() throws {
+        // Simulates a TileSet sub_resource body.
+        let source = """
+        [sub_resource type="Foo" id="x"]
+        0:0/animation_columns = 4
+        """
+        let tokens = try tokenize(source)
+        // Key token: `.identifier("0:0/animation_columns")`
+        let keyTokens = tokens.filter { $0.kind == .identifier && $0.text == "0:0/animation_columns" }
+        XCTAssertEqual(keyTokens.count, 1, "expected one token with text '0:0/animation_columns'")
+    }
+
+    func testBodyKeySourcesSlashInteger() throws {
+        let source = """
+        [sub_resource]
+        sources/0 = SubResource("x")
+        """
+        let tokens = try tokenize(source)
+        let keyTokens = tokens.filter { $0.kind == .identifier && $0.text == "sources/0" }
+        XCTAssertEqual(keyTokens.count, 1)
+    }
+
+    func testNormalPropertyKeyStillWorks() throws {
+        // Normal keys must still tokenize identically to before.
+        let source = """
+        [node]
+        position = Vector2(1, 2)
+        name = "Spinner"
+        """
+        let tokens = try tokenize(source)
+        XCTAssertTrue(tokens.contains(where: { $0.kind == .identifier && $0.text == "position" }))
+        XCTAssertTrue(tokens.contains(where: { $0.kind == .identifier && $0.text == "name" }))
+    }
+
+    func testIntegerInsideDictBodyStillLexesAsInteger() throws {
+        // Inside a dict (bracketDepth > 0), the permissive extension must NOT fire.
+        let source = """
+        [sub_resource]
+        _data = {
+        42: "forty-two"
+        }
+        """
+        let tokens = try tokenize(source)
+        // `42` at bracketDepth 1 (inside `{`) must be an integer token, not an identifier.
+        let fortyTwo = tokens.first(where: { $0.text == "42" })
+        XCTAssertEqual(fortyTwo?.kind, .integer)
+    }
+
+    func testColonStillLexesAsColonInsideDict() throws {
+        let source = """
+        [sub_resource]
+        _data = {
+        "key": 1
+        }
+        """
+        let tokens = try tokenize(source)
+        XCTAssertTrue(tokens.contains(where: { $0.kind == .colon }))
+    }
+
+    func testBodyKeyZeroColonZeroSlashZero() throws {
+        // `0:0/0` is a valid TileSet body key.
+        let source = """
+        [sub_resource]
+        0:0/0 = 0
+        """
+        let tokens = try tokenize(source)
+        let keyToken = tokens.first(where: { $0.kind == .identifier && $0.text == "0:0/0" })
+        XCTAssertNotNil(keyToken)
+    }
+
     // MARK: - Helper
 
     private func tokenize(_ source: String) throws -> [Token] {

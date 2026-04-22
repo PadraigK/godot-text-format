@@ -3,6 +3,8 @@ public struct Lexer {
     private var index: Int = 0
     private var line: Int = 1
     private var column: Int = 1
+    private var bracketDepth: Int = 0
+    private var atLineStart: Bool = true
 
     public init(source: String) {
         self.source = Array(source)
@@ -25,13 +27,21 @@ public struct Lexer {
             return Token(kind: .eof, text: "", range: SourceRange(start: start, end: start))
         }
 
+        // Capture whether we are at body-key position before clearing the flag.
+        // Body-key position: start of a non-section-header line at bracket depth 0.
+        // Used below to extend a digit-started number into a permissive key token
+        // when additional key characters (`:`) follow — handles Godot TileSet
+        // property names like `0:0/animation_columns` and `0:0/0`.
+        let atBodyKeyPosition = atLineStart && bracketDepth == 0 && ch != "["
+        atLineStart = false
+
         switch ch {
-        case "[": advance(); return make(.leftBracket, "[", from: start)
-        case "]": advance(); return make(.rightBracket, "]", from: start)
-        case "{": advance(); return make(.leftBrace, "{", from: start)
-        case "}": advance(); return make(.rightBrace, "}", from: start)
-        case "(": advance(); return make(.leftParen, "(", from: start)
-        case ")": advance(); return make(.rightParen, ")", from: start)
+        case "[": advance(); bracketDepth += 1; return make(.leftBracket, "[", from: start)
+        case "]": advance(); bracketDepth -= 1; return make(.rightBracket, "]", from: start)
+        case "{": advance(); bracketDepth += 1; return make(.leftBrace, "{", from: start)
+        case "}": advance(); bracketDepth -= 1; return make(.rightBrace, "}", from: start)
+        case "(": advance(); bracketDepth += 1; return make(.leftParen, "(", from: start)
+        case ")": advance(); bracketDepth -= 1; return make(.rightParen, ")", from: start)
         case "=": advance(); return make(.equals, "=", from: start)
         case ":": advance(); return make(.colon, ":", from: start)
         case ",": advance(); return make(.comma, ",", from: start)
@@ -69,7 +79,20 @@ public struct Lexer {
             throw ParseError("stray '-' is not allowed", at: start)
         default:
             if ch.isNumber {
-                return try readNumber(from: start)
+                let numToken = try readNumber(from: start)
+                // At body-key position, a number followed immediately by `:` is
+                // actually a TileSet-style property key like `0:0/animation_columns`.
+                // Extend permissively so the whole key becomes one identifier token.
+                if atBodyKeyPosition, let next = peek(), !next.isWhitespace && next != "=" {
+                    var text = numToken.text
+                    while let ch = peek(), !ch.isWhitespace && ch != "=" {
+                        text.append(ch)
+                        advance()
+                    }
+                    return Token(kind: .identifier, text: text,
+                        range: SourceRange(start: start, end: currentLocation()))
+                }
+                return numToken
             }
             if ch.isLetter || ch == "_" {
                 return readIdentifier(from: start)
@@ -78,7 +101,7 @@ public struct Lexer {
         }
     }
 
-    // MARK: - Scanner primitives
+// MARK: - Scanner primitives
 
     private func peek(_ offset: Int = 0) -> Character? {
         let i = index + offset
@@ -92,6 +115,7 @@ public struct Lexer {
         if ch == "\n" {
             line += 1
             column = 1
+            atLineStart = true
         } else {
             column += 1
         }
