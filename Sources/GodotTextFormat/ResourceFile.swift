@@ -2,8 +2,8 @@ public struct ResourceFile {
     public let format: Int
     public let type: String
     public let uid: String?
-    public let extResources: [SceneFile.ExtResourceEntry]
-    public let subResources: [SceneFile.SubResourceEntry]
+    public let extResources: [ExtResourceEntry]
+    public let subResources: [SubResourceEntry]
     public let resource: Section?
 
     public static func parse(_ source: String) throws -> ResourceFile {
@@ -18,8 +18,8 @@ public struct ResourceFile {
         var format = 0
         var type = ""
         var uid: String? = nil
-        var ext: [SceneFile.ExtResourceEntry] = []
-        var sub: [SceneFile.SubResourceEntry] = []
+        var ext: [ExtResourceEntry] = []
+        var sub: [SubResourceEntry] = []
         var resource: Section? = nil
 
         for section in sections {

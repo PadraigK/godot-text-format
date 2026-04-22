@@ -43,6 +43,44 @@ final class SceneFileTests: XCTestCase {
         XCTAssertEqual(body?.parentPath, "Spinner")
     }
 
+    func testEditableInstanceParsed() throws {
+        // Godot writes `[editable path="Spinner"]` with a plain string.
+        let text = """
+        [gd_scene format=3]
+        [node name="Main" type="Node2D"]
+        [node name="Spinner" type="Node" parent="."]
+        [editable path="Spinner"]
+        """
+        let scene = try SceneFile.parse(text)
+        XCTAssertEqual(scene.editableInstances, ["Spinner"])
+    }
+
+    func testConnectionParsed() throws {
+        let text = """
+        [gd_scene format=3]
+        [node name="Main" type="Node"]
+        [node name="Button" type="Button" parent="."]
+        [connection signal="pressed" from="Button" to="." method="_on_pressed"]
+        """
+        let scene = try SceneFile.parse(text)
+        XCTAssertEqual(scene.connections.count, 1)
+        XCTAssertEqual(scene.connections[0].signal, "pressed")
+        XCTAssertEqual(scene.connections[0].from, "Button")
+        XCTAssertEqual(scene.connections[0].to, ".")
+        XCTAssertEqual(scene.connections[0].method, "_on_pressed")
+    }
+
+    func testNodeGroupsParsed() throws {
+        let text = """
+        [gd_scene format=3]
+        [node name="Main" type="Node"]
+        [node name="Enemy" type="Node2D" parent="." groups=["enemies", "dangerous"]]
+        """
+        let scene = try SceneFile.parse(text)
+        let enemy = scene.nodes.first(where: { $0.name == "Enemy" })
+        XCTAssertEqual(enemy?.groups, ["enemies", "dangerous"])
+    }
+
     private func loadScene(named name: String) throws -> SceneFile {
         let url = Bundle.module.url(forResource: name, withExtension: nil, subdirectory: "Fixtures")!
         let text = try String(contentsOf: url, encoding: .utf8)

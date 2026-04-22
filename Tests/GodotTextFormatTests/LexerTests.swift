@@ -32,6 +32,18 @@ final class LexerTests: XCTestCase {
         XCTAssertEqual(tokens[0].range.end, SourceLocation(line: 1, column: 2))
     }
 
+    func testIdentifierWithSlash() throws {
+        // Godot `.godot` files use keys like `config/name`. The Lexer accepts `/`
+        // in identifier body (not start) — see readIdentifier.
+        let tokens = try tokenize("config/name")
+        XCTAssertEqual(tokens.map(\.kind), [.identifier, .eof])
+        XCTAssertEqual(tokens[0].text, "config/name")
+    }
+
+    func testSlashCannotStartIdentifier() {
+        XCTAssertThrowsError(try tokenize("/foo"))
+    }
+
     func testIdentifierSimple() throws {
         let tokens = try tokenize("foo bar_baz Quux123")
         XCTAssertEqual(tokens.map(\.kind), [.identifier, .identifier, .identifier, .eof])

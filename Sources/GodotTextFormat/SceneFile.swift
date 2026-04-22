@@ -7,22 +7,6 @@ public struct SceneFile {
     public let connections: [ConnectionEntry]
     public let editableInstances: [String]
 
-    public struct ExtResourceEntry {
-        public let id: String
-        public let type: String
-        public let path: String
-        public let uid: String?
-    }
-
-    public struct SubResourceEntry {
-        public let id: String
-        public let type: String
-        public let body: [(String, Value)]
-        public func prop(_ name: String) -> Value? {
-            body.first(where: { $0.0 == name })?.1
-        }
-    }
-
     public struct NodeEntry {
         public let name: String
         public let type: String?            // absent for inherited/instanced

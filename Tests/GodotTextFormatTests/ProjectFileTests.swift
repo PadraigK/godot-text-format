@@ -12,4 +12,13 @@ final class ProjectFileTests: XCTestCase {
         XCTAssertNotNil(input)
         XCTAssertEqual(input?.body.map(\.0), ["jump", "fire"])
     }
+
+    func testPlatformVariantSections() throws {
+        let url = Bundle.module.url(forResource: "project.godot", withExtension: nil, subdirectory: "Fixtures")!
+        let text = try String(contentsOf: url, encoding: .utf8)
+        let proj = try ProjectFile.parse(text)
+        // base [input] + [input.macos] variant → 2 sections
+        XCTAssertEqual(proj.sections(named: "input").count, 2)
+        XCTAssertEqual(proj.sections(named: "input").map(\.kind), ["input", "input.macos"])
+    }
 }
