@@ -41,6 +41,107 @@ final class SceneResolverTests: XCTestCase {
         XCTAssertEqual(flat.rootScriptPath, "res://spin.gd")
     }
 
+    // MARK: - Instanced scene typed-root resolution
+
+    func testInstancedScenesRootScriptPathIsResolved() throws {
+        // Parent instances a child whose root has a script attached.
+        // The flattener must surface the inner root's script path on
+        // the FlatNode for the instanced sub-scene, so SceneGen can
+        // type the NodeRef using the script's user class.
+        let catalogue = makeCatalogue([
+            "res://parent.tscn": """
+            [gd_scene format=3]
+
+            [ext_resource type="PackedScene" path="res://scripted-child.tscn" id="1_child"]
+
+            [node name="Parent" type="Node2D"]
+
+            [node name="Child" parent="." instance=ExtResource("1_child")]
+            """,
+            "res://scripted-child.tscn": """
+            [gd_scene format=3]
+
+            [ext_resource type="Script" path="res://boil_meter.gd" id="1_script"]
+
+            [node name="ScriptedRoot" type="MarginContainer"]
+            script = ExtResource("1_script")
+            """,
+        ])
+
+        let resolver = SceneResolver(catalogue: catalogue)
+        let flat = try resolver.flatten(resourcePath: "res://parent.tscn")
+
+        let child = flat.nodes.first(where: { $0.name == "Child" })
+        XCTAssertNotNil(child, "expected Child node in flattened parent")
+        // Existing behaviour preserved: type is the inner scene's engine class.
+        XCTAssertEqual(child?.type, "MarginContainer",
+                       "FlatNode.type should still report the inner scene's engine type")
+        // Existing behaviour preserved: instanceScenePath points at the child.
+        XCTAssertEqual(child?.instanceScenePath, "res://scripted-child.tscn")
+        // New behaviour: instancedRootScriptPath is the inner root's script.
+        XCTAssertEqual(child?.instancedRootScriptPath, "res://boil_meter.gd",
+                       "expected the inner scene's root script ExtResource path to be resolved")
+    }
+
+    func testInstancedSceneWithoutRootScriptHasNilScriptPath() throws {
+        // Negative: instanced child has no script on its root → field is nil.
+        // Confirms we don't fabricate a script path or accidentally
+        // surface some other ext_resource.
+        let catalogue = makeCatalogue([
+            "res://parent.tscn": """
+            [gd_scene format=3]
+
+            [ext_resource type="PackedScene" path="res://scriptless-child.tscn" id="1_child"]
+
+            [node name="Parent" type="Node2D"]
+
+            [node name="Child" parent="." instance=ExtResource("1_child")]
+            """,
+            "res://scriptless-child.tscn": """
+            [gd_scene format=3]
+
+            [node name="ScriptedRoot" type="MarginContainer"]
+            """,
+        ])
+
+        let resolver = SceneResolver(catalogue: catalogue)
+        let flat = try resolver.flatten(resourcePath: "res://parent.tscn")
+
+        let child = flat.nodes.first(where: { $0.name == "Child" })
+        XCTAssertNotNil(child)
+        XCTAssertNil(child?.instancedRootScriptPath,
+                     "expected nil when inner root has no script attached")
+    }
+
+    func testNonInstancedNodesHaveNilInstancedRootScriptPath() throws {
+        // Negative: a regular (non-instanced) node — even one with a
+        // direct `script =` attachment — must NOT have
+        // instancedRootScriptPath set. That field is exclusively for
+        // the instance=ExtResource(...) path. Direct scripts go in
+        // FlatNode.scriptPath.
+        let catalogue = makeCatalogue([
+            "res://main.tscn": """
+            [gd_scene format=3]
+
+            [ext_resource type="Script" path="res://spin.gd" id="1_spin"]
+
+            [node name="Main" type="Node2D"]
+
+            [node name="Spinner" type="Sprite2D" parent="."]
+            script = ExtResource("1_spin")
+            """
+        ])
+
+        let resolver = SceneResolver(catalogue: catalogue)
+        let flat = try resolver.flatten(resourcePath: "res://main.tscn")
+        let spinner = flat.nodes.first(where: { $0.name == "Spinner" })
+        XCTAssertNotNil(spinner)
+        XCTAssertEqual(spinner?.scriptPath, "res://spin.gd",
+                       "direct scripts populate scriptPath, not instancedRootScriptPath")
+        XCTAssertNil(spinner?.instancedRootScriptPath,
+                     "non-instanced nodes must not have instancedRootScriptPath set")
+    }
+
     // MARK: - Inheritance
 
     func testInheritanceFlattensParent() throws {

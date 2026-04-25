@@ -118,6 +118,7 @@ public struct SceneResolver {
         let scriptPath = try resolveScriptPath(of: node, in: scene)
 
         var instancePath: String? = nil
+        var instancedRootScript: String? = nil
         var type = node.type ?? "Node"
         if let instanceId = node.instance, let ext = scene.extResource(id: instanceId) {
             instancePath = ext.path
@@ -125,8 +126,14 @@ public struct SceneResolver {
             // type of the instanced scene (so the accessor type is correct) but
             // do NOT recurse into its children. Per project convention.
             let inner = try catalogue.sceneFile(at: ext.path)
-            if let t = inner.rootNode?.type {
-                type = t
+            if let root = inner.rootNode {
+                if let t = root.type {
+                    type = t
+                }
+                // Also extract the root's script path. SceneGen consults
+                // ScriptClassMap to map this back to the user's Swift class
+                // and uses it as the NodeRef value type.
+                instancedRootScript = try resolveScriptPath(of: root, in: inner)
             }
         }
 
@@ -140,7 +147,8 @@ public struct SceneResolver {
             scriptPath: scriptPath,
             uniqueInOwner: uniqueInOwner,
             groups: node.groups,
-            instanceScenePath: instancePath
+            instanceScenePath: instancePath,
+            instancedRootScriptPath: instancedRootScript
         )
     }
 
