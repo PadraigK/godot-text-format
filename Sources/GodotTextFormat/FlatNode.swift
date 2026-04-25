@@ -27,6 +27,13 @@ public struct FlatNode: Equatable {
     public let uniqueInOwner: Bool
     public let groups: [String]
     public let instanceScenePath: String?  // res://... when this node is a nested scene boundary
+    /// When this node is an instanced sub-scene (`instanceScenePath != nil`)
+    /// and the inner scene's root has a `script = ExtResource(...)` line,
+    /// the resolved `res://...` path of that script. Used by SceneGen to
+    /// type the NodeRef as the script's user class instead of the engine
+    /// class. Nil for non-instanced nodes and for instanced scenes whose
+    /// root has no script attached.
+    public let instancedRootScriptPath: String?
 
     public init(
         path: [String],
@@ -35,7 +42,8 @@ public struct FlatNode: Equatable {
         scriptPath: String?,
         uniqueInOwner: Bool,
         groups: [String],
-        instanceScenePath: String?
+        instanceScenePath: String?,
+        instancedRootScriptPath: String? = nil
     ) {
         self.path = path
         self.name = name
@@ -44,5 +52,6 @@ public struct FlatNode: Equatable {
         self.uniqueInOwner = uniqueInOwner
         self.groups = groups
         self.instanceScenePath = instanceScenePath
+        self.instancedRootScriptPath = instancedRootScriptPath
     }
 }
