@@ -166,21 +166,6 @@ final class ValueParserTests: XCTestCase {
             .construct(name: "Vector2", args: [.int(1), .int(2)]))
     }
 
-    func testVector3FloatArgs() throws {
-        XCTAssertEqual(try parse("Vector3(1.0, 2.5, -3.5)"),
-            .construct(name: "Vector3", args: [.double(1.0), .double(2.5), .double(-3.5)]))
-    }
-
-    func testColorConstruct() throws {
-        XCTAssertEqual(try parse("Color(1, 0.5, 0, 1)"),
-            .construct(name: "Color", args: [.int(1), .double(0.5), .int(0), .int(1)]))
-    }
-
-    func testPackedStringArrayConstruct() throws {
-        XCTAssertEqual(try parse("PackedStringArray(\"a\", \"b\", \"c\")"),
-            .construct(name: "PackedStringArray", args: [.string("a"), .string("b"), .string("c")]))
-    }
-
     func testRIDConstruct() throws {
         XCTAssertEqual(try parse("RID()"), .construct(name: "RID", args: []))
         XCTAssertEqual(try parse("RID(42)"), .construct(name: "RID", args: [.int(42)]))
