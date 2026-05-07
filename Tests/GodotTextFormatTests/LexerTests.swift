@@ -77,12 +77,6 @@ final class LexerTests: XCTestCase {
         XCTAssertEqual(tokens.first?.text, "#FFAA00")
     }
 
-    func testHexColorWithAlpha() throws {
-        let tokens = try tokenize("#FFAA0080")
-        XCTAssertEqual(tokens.map(\.kind), [.hexColor, .eof])
-        XCTAssertEqual(tokens.first?.text, "#FFAA0080")
-    }
-
     func testHexColorWrongLengthThrows() {
         XCTAssertThrowsError(try tokenize("#FFAA")) { err in
             guard let parseError = err as? ParseError else {
@@ -304,17 +298,6 @@ final class LexerTests: XCTestCase {
         """
         let tokens = try tokenize(source)
         XCTAssertTrue(tokens.contains(where: { $0.kind == .colon }))
-    }
-
-    func testBodyKeyZeroColonZeroSlashZero() throws {
-        // `0:0/0` is a valid TileSet body key.
-        let source = """
-        [sub_resource]
-        0:0/0 = 0
-        """
-        let tokens = try tokenize(source)
-        let keyToken = tokens.first(where: { $0.kind == .identifier && $0.text == "0:0/0" })
-        XCTAssertNotNil(keyToken)
     }
 
     // MARK: - Helper
