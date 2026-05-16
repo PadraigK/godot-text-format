@@ -65,16 +65,20 @@ public struct SectionParser {
         }
         let rightBracketTok = try expect(.rightBracket)
 
-        // Body: zero or more `identifier = value` lines until EOF or next '['.
+        // Body: zero or more `key = value` lines until EOF or next '['.
+        // The key may be a dotted identifier — Godot uses the
+        // `<property>.<platform>` shape (e.g. `driver.windows="d3d12"`)
+        // for platform-specific property overrides.
         var body: [(String, Value)] = []
         while peek().kind == .identifier {
-            let keyTok = peek()
-            advance()
+            let keyStart = peek().range.start
+            let key = try parseDottedIdentifier()
             _ = try expect(.equals)
             var valueParser = ValueParser(tokens: tokens, startingAt: index)
             let value = try valueParser.parseValue()
             index += valueParser.consumedCount
-            body.append((keyTok.text, value))
+            body.append((key, value))
+            _ = keyStart   // reserved for future diagnostics
         }
 
         return Section(
