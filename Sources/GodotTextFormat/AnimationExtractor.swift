@@ -34,15 +34,42 @@ public enum AnimationExtractor {
     }
 
     private static func extractLibraries(from node: SceneFile.NodeEntry, in scene: SceneFile) -> [LibraryInfo] {
-        guard case .dictionary(let pairs) = node.prop("libraries") ?? .null else { return [] }
-        return pairs.compactMap { key, ref in
-            guard case .string(let libName) = key else { return nil }
-            guard case .subResource(let subId) = ref else { return nil }
-            guard let lib = scene.subResource(id: subId), lib.type == "AnimationLibrary" else { return nil }
+        // Godot serializes AnimationPlayer.libraries one of two ways:
+        //
+        //   1. Inline dictionary — `libraries = { "": SubResource(...) }`.
+        //      Compact; sometimes seen in hand-authored fixtures.
+        //   2. Dotted-key per entry — `libraries/ = SubResource(...)` for
+        //      the default library, `libraries/<name> = SubResource(...)`
+        //      for each named library. This is what Godot 4 actually
+        //      writes when you edit + save through the editor.
+        //
+        // Read whichever form is present; prefer the dotted form when both
+        // appear, since that's what the engine round-trips through.
+        var libRefs: [(libraryName: String, subId: String)] = []
+        for (key, value) in node.body where key.hasPrefix("libraries/") {
+            guard case .subResource(let subId) = value else { continue }
+            let libName = String(key.dropFirst("libraries/".count))
+            libRefs.append((libName, subId))
+        }
+        if libRefs.isEmpty,
+           case .dictionary(let pairs) = node.prop("libraries") ?? .null {
+            for (key, ref) in pairs {
+                guard case .string(let libName) = key else { continue }
+                guard case .subResource(let subId) = ref else { continue }
+                libRefs.append((libName, subId))
+            }
+        }
+        return libRefs.compactMap { libName, subId in
+            guard let lib = scene.subResource(id: subId),
+                  lib.type == "AnimationLibrary" else { return nil }
             guard case .dictionary(let data) = lib.prop("_data") ?? .null else { return nil }
+            // `_data` keys are typically StringName literals (`&"title"`),
+            // but older files used plain quoted strings — accept both.
             let names: [String] = data.compactMap { k, _ in
-                if case .string(let s) = k { return s }
-                return nil
+                switch k {
+                case .stringName(let s), .string(let s): return s
+                default: return nil
+                }
             }
             return LibraryInfo(libraryName: libName, animationNames: names)
         }
