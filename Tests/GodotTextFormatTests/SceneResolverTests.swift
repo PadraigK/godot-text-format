@@ -202,9 +202,9 @@ final class SceneResolverTests: XCTestCase {
         XCTAssertEqual(marker?.groups, ["overlay"], "groups should survive typed override")
     }
 
-    // MARK: - Nested instance boundary
+    // MARK: - Nested instance with a script-less root
 
-    func testNestedInstanceIsBoundary() throws {
+    func testNestedInstanceWithScriptlessRootIsTransparent() throws {
         let outer = try String(contentsOf:
             Bundle.module.url(forResource: "outer.tscn", withExtension: nil, subdirectory: "Fixtures/nested")!,
             encoding: .utf8)
@@ -216,11 +216,12 @@ final class SceneResolverTests: XCTestCase {
             "res://inner.tscn": inner,
         ])
         let flat = try SceneResolver(catalogue: catalogue).flatten(resourcePath: "res://outer.tscn")
-        // NestedInstance appears, but InnerLabel (child of the instanced scene) must NOT.
-        XCTAssertEqual(flat.nodes.map(\.path), [["NestedInstance"], ["OuterLabel"]])
-        XCTAssertEqual(flat.nodes.map(\.type), ["Control", "Label"])
+        // The inner scene's root has no script, so its layout is the outer
+        // scene's to reach: InnerLabel appears under NestedInstance.
+        XCTAssertEqual(flat.nodes.map(\.path), [["NestedInstance"], ["NestedInstance", "InnerLabel"], ["OuterLabel"]])
+        XCTAssertEqual(flat.nodes.map(\.type), ["Control", "Label", "Label"])
         XCTAssertEqual(flat.nodes[0].instanceScenePath, "res://inner.tscn")
-        XCTAssertNil(flat.nodes[1].instanceScenePath)
+        XCTAssertNil(flat.nodes[2].instanceScenePath)
     }
 
     // MARK: - Unique name in owner
@@ -259,6 +260,80 @@ final class SceneResolverTests: XCTestCase {
     }
 
     // MARK: - Helpers
+
+    // MARK: - Instances
+
+    func testInstanceWithScriptedRootIsOpaqueAndTypedThroughInheritance() throws {
+        let catalogue = makeCatalogue([
+            "res://main.tscn": """
+            [gd_scene format=3]
+
+            [ext_resource type="PackedScene" path="res://pat.tscn" id="1_pat"]
+
+            [node name="Main" type="Node2D"]
+
+            [node name="Pat" parent="." instance=ExtResource("1_pat")]
+            """,
+            "res://pat.tscn": """
+            [gd_scene format=3]
+
+            [ext_resource type="PackedScene" path="res://customer.tscn" id="1_c"]
+
+            [node name="Pat" instance=ExtResource("1_c")]
+            """,
+            "res://customer.tscn": """
+            [gd_scene format=3]
+
+            [ext_resource type="Script" path="res://customer.gd" id="1_s"]
+
+            [node name="Customer" type="CharacterBody2D"]
+            script = ExtResource("1_s")
+
+            [node name="Body" type="Sprite2D" parent="."]
+            """,
+        ])
+        let flat = try SceneResolver(catalogue: catalogue).flatten(resourcePath: "res://main.tscn")
+        XCTAssertEqual(flat.nodes.map(\.path), [["Pat"]])
+        XCTAssertEqual(flat.nodes[0].type, "CharacterBody2D")
+        XCTAssertEqual(flat.nodes[0].instancedRootScriptPath, "res://customer.gd")
+    }
+
+    func testInstanceWithScriptlessRootIsTransparent() throws {
+        let catalogue = makeCatalogue([
+            "res://main.tscn": """
+            [gd_scene format=3]
+
+            [ext_resource type="PackedScene" path="res://hud.tscn" id="1_hud"]
+
+            [node name="Main" type="Node2D"]
+
+            [node name="Hud" parent="." instance=ExtResource("1_hud")]
+
+            [node name="Score" parent="Hud"]
+            text = "0"
+            """,
+            "res://hud.tscn": """
+            [gd_scene format=3]
+
+            [ext_resource type="Script" path="res://panel.gd" id="1_p"]
+
+            [node name="Hud" type="Control"]
+
+            [node name="Score" type="Label" parent="."]
+            unique_name_in_owner = true
+
+            [node name="Panel" type="Control" parent="."]
+            script = ExtResource("1_p")
+            """,
+        ])
+        let flat = try SceneResolver(catalogue: catalogue).flatten(resourcePath: "res://main.tscn")
+        XCTAssertEqual(flat.nodes.map { $0.path.joined(separator: "/") }, ["Hud", "Hud/Score", "Hud/Panel"])
+        XCTAssertEqual(flat.nodes[0].type, "Control")
+        XCTAssertNil(flat.nodes[0].instancedRootScriptPath)
+        XCTAssertEqual(flat.nodes[1].type, "Label")
+        XCTAssertFalse(flat.nodes[1].uniqueInOwner, "uniqueness belongs to the instanced scene's owner, not this one")
+        XCTAssertEqual(flat.nodes[2].scriptPath, "res://panel.gd")
+    }
 
     fileprivate func makeCatalogue(_ store: [String: String]) -> SceneCatalogue {
         SceneCatalogue { path in
