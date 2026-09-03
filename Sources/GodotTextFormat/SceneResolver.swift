@@ -29,7 +29,8 @@ public struct SceneResolver {
                 parent: parent,
                 child: scene,
                 childResourcePath: resourcePath,
-                childRoot: root
+                childRoot: root,
+                visiting: &visiting
             )
         }
 
@@ -38,14 +39,15 @@ public struct SceneResolver {
         }
 
         var nodes: [FlatNode] = []
+        var pathIndex: [String: Int] = [:]
         for node in scene.nodes.dropFirst() {
             guard let parentPath = node.parentPath else { continue }
             let path = parentPathComponents(parentPath) + [node.name]
-            nodes.append(try makeFlatNode(
-                node: node,
-                path: path,
-                scene: scene
-            ))
+            let (flat, innerNodes) = try makeFlatNode(node: node, path: path, scene: scene, visiting: &visiting)
+            appendOrMerge(flat, explicitType: node.type, into: &nodes, index: &pathIndex)
+            for inner in innerNodes {
+                appendOrMerge(inner, explicitType: inner.type, into: &nodes, index: &pathIndex)
+            }
         }
 
         return FlatScene(
@@ -61,7 +63,8 @@ public struct SceneResolver {
         parent: FlatScene,
         child: SceneFile,
         childResourcePath: String,
-        childRoot: SceneFile.NodeEntry
+        childRoot: SceneFile.NodeEntry,
+        visiting: inout [String]
     ) throws -> FlatScene {
         var nodes = parent.nodes
         var pathIndex: [String: Int] = [:]
@@ -72,25 +75,10 @@ public struct SceneResolver {
         for node in child.nodes.dropFirst() {
             guard let parentPath = node.parentPath else { continue }
             let pathComponents = parentPathComponents(parentPath) + [node.name]
-            let key = pathComponents.joined(separator: "/")
-
-            let flat = try makeFlatNode(node: node, path: pathComponents, scene: child)
-            if let existing = pathIndex[key] {
-                // Override: child values win when specified; otherwise keep parent's.
-                // Type follows child's explicit type=, else parent's.
-                let merged = FlatNode(
-                    path: flat.path,
-                    name: flat.name,
-                    type: node.type ?? nodes[existing].type,
-                    scriptPath: flat.scriptPath ?? nodes[existing].scriptPath,
-                    uniqueInOwner: flat.uniqueInOwner || nodes[existing].uniqueInOwner,
-                    groups: flat.groups.isEmpty ? nodes[existing].groups : flat.groups,
-                    instanceScenePath: flat.instanceScenePath ?? nodes[existing].instanceScenePath
-                )
-                nodes[existing] = merged
-            } else {
-                pathIndex[key] = nodes.count
-                nodes.append(flat)
+            let (flat, innerNodes) = try makeFlatNode(node: node, path: pathComponents, scene: child, visiting: &visiting)
+            appendOrMerge(flat, explicitType: node.type, into: &nodes, index: &pathIndex)
+            for inner in innerNodes {
+                appendOrMerge(inner, explicitType: inner.type, into: &nodes, index: &pathIndex)
             }
         }
 
@@ -110,37 +98,71 @@ public struct SceneResolver {
         return parent.split(separator: "/").map(String.init)
     }
 
+    /// A node at a path already present (an override of an inherited or
+    /// instanced node) merges into it: explicit values win, the rest is
+    /// kept.
+    private func appendOrMerge(
+        _ flat: FlatNode,
+        explicitType: String?,
+        into nodes: inout [FlatNode],
+        index: inout [String: Int]
+    ) {
+        let key = flat.path.joined(separator: "/")
+        guard let existing = index[key] else {
+            index[key] = nodes.count
+            nodes.append(flat)
+            return
+        }
+        nodes[existing] = FlatNode(
+            path: flat.path,
+            name: flat.name,
+            type: explicitType ?? nodes[existing].type,
+            scriptPath: flat.scriptPath ?? nodes[existing].scriptPath,
+            uniqueInOwner: flat.uniqueInOwner || nodes[existing].uniqueInOwner,
+            groups: flat.groups.isEmpty ? nodes[existing].groups : flat.groups,
+            instanceScenePath: flat.instanceScenePath ?? nodes[existing].instanceScenePath,
+            instancedRootScriptPath: flat.instancedRootScriptPath ?? nodes[existing].instancedRootScriptPath
+        )
+    }
+
+    /// The node, plus the instanced scene's own nodes re-rooted under it
+    /// when that scene's root has no script. An instance whose root is
+    /// scripted is a boundary: its type and script are read, its children
+    /// belong to that script.
     private func makeFlatNode(
         node: SceneFile.NodeEntry,
         path: [String],
-        scene: SceneFile
-    ) throws -> FlatNode {
+        scene: SceneFile,
+        visiting: inout [String]
+    ) throws -> (FlatNode, [FlatNode]) {
         let scriptPath = try resolveScriptPath(of: node, in: scene)
-
         var instancePath: String? = nil
         var instancedRootScript: String? = nil
         var type = node.type ?? "Node"
+        var innerNodes: [FlatNode] = []
         if let instanceId = node.instance, let ext = scene.extResource(id: instanceId) {
             instancePath = ext.path
-            // Nested scene instances are opaque boundaries — we resolve the root
-            // type of the instanced scene (so the accessor type is correct) but
-            // do NOT recurse into its children. Per project convention.
-            let inner = try catalogue.sceneFile(at: ext.path)
-            if let root = inner.rootNode {
-                if let t = root.type {
-                    type = t
+            let inner = try flattenImpl(resourcePath: ext.path, visiting: &visiting)
+            type = inner.rootType
+            instancedRootScript = inner.rootScriptPath
+            if instancedRootScript == nil {
+                innerNodes = inner.nodes.map { n in
+                    FlatNode(
+                        path: path + n.path,
+                        name: n.name,
+                        type: n.type,
+                        scriptPath: n.scriptPath,
+                        uniqueInOwner: false,
+                        groups: n.groups,
+                        instanceScenePath: n.instanceScenePath,
+                        instancedRootScriptPath: n.instancedRootScriptPath
+                    )
                 }
-                // Also extract the root's script path. SceneGen consults
-                // ScriptClassMap to map this back to the user's Swift class
-                // and uses it as the NodeRef value type.
-                instancedRootScript = try resolveScriptPath(of: root, in: inner)
             }
         }
-
         var uniqueInOwner = false
         if case .bool(let b) = node.prop("unique_name_in_owner") ?? .null { uniqueInOwner = b }
-
-        return FlatNode(
+        let flat = FlatNode(
             path: path,
             name: path.last ?? node.name,
             type: type,
@@ -150,6 +172,7 @@ public struct SceneResolver {
             instanceScenePath: instancePath,
             instancedRootScriptPath: instancedRootScript
         )
+        return (flat, innerNodes)
     }
 
     private func resolveScriptPath(of node: SceneFile.NodeEntry, in scene: SceneFile) throws -> String? {

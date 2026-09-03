@@ -27,7 +27,22 @@ public struct SceneFile {
         public let from: String
         public let to: String
         public let method: String
+        /// Extra arguments appended after the signal's own (`binds=[3]`).
+        public let binds: [Value]
+        /// Trailing signal arguments dropped before the call (`unbinds=1`).
+        public let unbinds: Int
         public let body: [(String, Value)]
+
+        public init(signal: String, from: String, to: String, method: String,
+                    binds: [Value] = [], unbinds: Int = 0, body: [(String, Value)] = []) {
+            self.signal = signal
+            self.from = from
+            self.to = to
+            self.method = method
+            self.binds = binds
+            self.unbinds = unbinds
+            self.body = body
+        }
     }
 
     public static func parse(_ source: String) throws -> SceneFile {
@@ -167,7 +182,11 @@ public struct SceneFile {
         guard let method = stringOrPath(s.attr("method")) else {
             throw ParseError("connection missing method", at: s.headerRange.start)
         }
-        return .init(signal: signal, from: from, to: to, method: method, body: s.body)
+        var binds: [Value] = []
+        if case .array(let items)? = s.attr("binds") { binds = items }
+        var unbinds = 0
+        if case .int(let n)? = s.attr("unbinds") { unbinds = Int(n) }
+        return .init(signal: signal, from: from, to: to, method: method, binds: binds, unbinds: unbinds, body: s.body)
     }
 
     public var rootNode: NodeEntry? { nodes.first }
