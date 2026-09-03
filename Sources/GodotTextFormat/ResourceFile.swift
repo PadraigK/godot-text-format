@@ -1,6 +1,9 @@
 public struct ResourceFile {
     public let format: Int
     public let type: String
+    /// `script_class="Name"` on the header: the named class of the
+    /// attached script, when the editor knows one.
+    public let scriptClass: String?
     public let uid: String?
     public let extResources: [ExtResourceEntry]
     public let subResources: [SubResourceEntry]
@@ -17,6 +20,7 @@ public struct ResourceFile {
     public init(sections: [Section]) throws {
         var format = 0
         var type = ""
+        var scriptClass: String? = nil
         var uid: String? = nil
         var ext: [ExtResourceEntry] = []
         var sub: [SubResourceEntry] = []
@@ -27,6 +31,7 @@ public struct ResourceFile {
             case "gd_resource":
                 if case .int(let f) = section.attr("format") ?? .null { format = Int(f) }
                 if case .string(let t) = section.attr("type") ?? .null { type = t }
+                if case .string(let c) = section.attr("script_class") ?? .null { scriptClass = c }
                 if case .string(let u) = section.attr("uid") ?? .null { uid = u }
             case "ext_resource":
                 guard case .string(let id) = section.attr("id") ?? .null,
@@ -52,6 +57,7 @@ public struct ResourceFile {
 
         self.format = format
         self.type = type
+        self.scriptClass = scriptClass
         self.uid = uid
         self.extResources = ext
         self.subResources = sub
