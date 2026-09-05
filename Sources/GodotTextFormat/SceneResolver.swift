@@ -55,6 +55,7 @@ public struct SceneResolver {
             rootType: rootType,
             rootScriptPath: try resolveScriptPath(of: root, in: scene),
             rootNodeName: root.name,
+            rootGroups: root.groups,
             nodes: nodes
         )
     }
@@ -89,6 +90,7 @@ public struct SceneResolver {
             rootType: parent.rootType,
             rootScriptPath: childRootScript ?? parent.rootScriptPath,
             rootNodeName: childRoot.name,
+            rootGroups: childRoot.groups.isEmpty ? parent.rootGroups : childRoot.groups,
             nodes: nodes
         )
     }

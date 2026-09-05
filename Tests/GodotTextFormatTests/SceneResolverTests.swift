@@ -23,6 +23,22 @@ final class SceneResolverTests: XCTestCase {
         XCTAssertEqual(flat.nodes.map(\.type), ["Sprite2D", "StaticBody2D"])
     }
 
+    func testRootGroupsAreExposed() throws {
+        let catalogue = makeCatalogue([
+            "res://window.tscn": """
+            [gd_scene format=3]
+
+            [node name="Window" type="PanelContainer" groups=["window"]]
+
+            [node name="Title" type="Label" parent="." groups=["titles"]]
+            """
+        ])
+        let resolver = SceneResolver(catalogue: catalogue)
+        let flat = try resolver.flatten(resourcePath: "res://window.tscn")
+        XCTAssertEqual(flat.rootGroups, ["window"])
+        XCTAssertEqual(flat.nodes.map(\.groups), [["titles"]])
+    }
+
     func testNodeScriptIsExposed() throws {
         let catalogue = makeCatalogue([
             "res://main.tscn": """
