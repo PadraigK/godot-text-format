@@ -31,16 +31,23 @@ public struct SceneFile {
         public let binds: [Value]
         /// Trailing signal arguments dropped before the call (`unbinds=1`).
         public let unbinds: Int
+        /// Godot's `ConnectFlags` bitmask (`flags=18`).
+        public let flags: Int
         public let body: [(String, Value)]
 
+        /// `CONNECT_APPEND_SOURCE_OBJECT`: the emitter is passed as the
+        /// handler's first argument.
+        public var appendsSourceObject: Bool { flags & 16 != 0 }
+
         public init(signal: String, from: String, to: String, method: String,
-                    binds: [Value] = [], unbinds: Int = 0, body: [(String, Value)] = []) {
+                    binds: [Value] = [], unbinds: Int = 0, flags: Int = 0, body: [(String, Value)] = []) {
             self.signal = signal
             self.from = from
             self.to = to
             self.method = method
             self.binds = binds
             self.unbinds = unbinds
+            self.flags = flags
             self.body = body
         }
     }
@@ -186,7 +193,9 @@ public struct SceneFile {
         if case .array(let items)? = s.attr("binds") { binds = items }
         var unbinds = 0
         if case .int(let n)? = s.attr("unbinds") { unbinds = Int(n) }
-        return .init(signal: signal, from: from, to: to, method: method, binds: binds, unbinds: unbinds, body: s.body)
+        var flags = 0
+        if case .int(let n)? = s.attr("flags") { flags = Int(n) }
+        return .init(signal: signal, from: from, to: to, method: method, binds: binds, unbinds: unbinds, flags: flags, body: s.body)
     }
 
     public var rootNode: NodeEntry? { nodes.first }
