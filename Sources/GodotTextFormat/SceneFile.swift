@@ -40,7 +40,7 @@ public struct SceneFile {
         public var appendsSourceObject: Bool { flags & 16 != 0 }
 
         public init(signal: String, from: String, to: String, method: String,
-                    binds: [Value] = [], unbinds: Int = 0, flags: Int = 0, body: [(String, Value)] = []) {
+                    binds: [Value], unbinds: Int, flags: Int, body: [(String, Value)]) {
             self.signal = signal
             self.from = from
             self.to = to
