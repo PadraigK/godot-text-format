@@ -18,23 +18,23 @@ public struct SceneResolver {
         defer { visiting.removeLast() }
 
         let scene = try catalogue.sceneFile(at: resourcePath)
-        guard let root = scene.rootNode else {
+        guard let rootEntry = scene.rootNode else {
             throw ResolveError.notAScene(resourcePath)
         }
 
         // Inherited scene: root has `instance=` pointing at another scene.
-        if let instanceId = root.instance, let ext = scene.extResource(id: instanceId) {
+        if let instanceId = rootEntry.instance, let ext = scene.extResource(id: instanceId) {
             let parent = try flattenImpl(resourcePath: ext.path, visiting: &visiting)
             return try merge(
                 parent: parent,
                 child: scene,
                 childResourcePath: resourcePath,
-                childRoot: root,
+                childRoot: rootEntry,
                 visiting: &visiting
             )
         }
 
-        guard let rootType = root.type else {
+        guard let rootType = rootEntry.type else {
             throw ResolveError.notAScene(resourcePath)
         }
 
@@ -52,10 +52,15 @@ public struct SceneResolver {
 
         return FlatScene(
             resourcePath: resourcePath,
-            rootType: rootType,
-            rootScriptPath: try resolveScriptPath(of: root, in: scene),
-            rootNodeName: root.name,
-            rootGroups: root.groups,
+            root: FlatNode(
+                path: [],
+                name: rootEntry.name,
+                type: rootType,
+                scriptPath: try resolveScriptPath(of: rootEntry, in: scene),
+                uniqueInOwner: false,
+                groups: rootEntry.groups,
+                instanceScenePath: nil
+            ),
             nodes: nodes
         )
     }
@@ -83,14 +88,18 @@ public struct SceneResolver {
             }
         }
 
-        // Root comes from parent (type/script), name from child.
-        let childRootScript = try resolveScriptPath(of: childRoot, in: child)
+        let childRootFlat = FlatNode(
+            path: [],
+            name: childRoot.name,
+            type: childRoot.type ?? parent.root.type,
+            scriptPath: try resolveScriptPath(of: childRoot, in: child),
+            uniqueInOwner: false,
+            groups: childRoot.groups,
+            instanceScenePath: nil
+        )
         return FlatScene(
             resourcePath: childResourcePath,
-            rootType: parent.rootType,
-            rootScriptPath: childRootScript ?? parent.rootScriptPath,
-            rootNodeName: childRoot.name,
-            rootGroups: SceneResolver.unionGroups(parent.rootGroups, childRoot.groups),
+            root: merged(childRootFlat, into: parent.root, explicitType: childRoot.type),
             nodes: nodes
         )
     }
@@ -126,15 +135,19 @@ public struct SceneResolver {
             nodes.append(flat)
             return
         }
-        nodes[existing] = FlatNode(
+        nodes[existing] = merged(flat, into: nodes[existing], explicitType: explicitType)
+    }
+
+    private func merged(_ flat: FlatNode, into existing: FlatNode, explicitType: String?) -> FlatNode {
+        FlatNode(
             path: flat.path,
             name: flat.name,
-            type: explicitType ?? nodes[existing].type,
-            scriptPath: flat.scriptPath ?? nodes[existing].scriptPath,
-            uniqueInOwner: flat.uniqueInOwner || nodes[existing].uniqueInOwner,
-            groups: SceneResolver.unionGroups(nodes[existing].groups, flat.groups),
-            instanceScenePath: flat.instanceScenePath ?? nodes[existing].instanceScenePath,
-            instancedRootScriptPath: flat.instancedRootScriptPath ?? nodes[existing].instancedRootScriptPath
+            type: explicitType ?? existing.type,
+            scriptPath: flat.scriptPath ?? existing.scriptPath,
+            uniqueInOwner: flat.uniqueInOwner || existing.uniqueInOwner,
+            groups: SceneResolver.unionGroups(existing.groups, flat.groups),
+            instanceScenePath: flat.instanceScenePath ?? existing.instanceScenePath,
+            instancedRootScriptPath: flat.instancedRootScriptPath ?? existing.instancedRootScriptPath
         )
     }
 
@@ -157,9 +170,9 @@ public struct SceneResolver {
         if let instanceId = node.instance, let ext = scene.extResource(id: instanceId) {
             instancePath = ext.path
             let inner = try flattenImpl(resourcePath: ext.path, visiting: &visiting)
-            type = inner.rootType
-            instancedRootScript = inner.rootScriptPath
-            groups = SceneResolver.unionGroups(inner.rootGroups, node.groups)
+            type = inner.root.type
+            instancedRootScript = inner.root.scriptPath
+            groups = SceneResolver.unionGroups(inner.root.groups, node.groups)
             if instancedRootScript == nil {
                 innerNodes = inner.nodes.map { n in
                     FlatNode(

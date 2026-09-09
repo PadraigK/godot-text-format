@@ -1,23 +1,13 @@
 public struct FlatScene: Equatable {
     public let resourcePath: String
-    public let rootType: String           // concrete Godot class (resolved through inheritance)
-    public let rootScriptPath: String?    // res://... from root node's `script = ExtResource("id")`
-    public let rootNodeName: String
-    public let rootGroups: [String]
+    /// The scene's root, resolved through inheritance: an empty `path` and
+    /// the concrete Godot class the scene instantiates.
+    public let root: FlatNode
+    /// The root's descendants, in the order the scene declares them.
     public let nodes: [FlatNode]
-    public init(
-        resourcePath: String,
-        rootType: String,
-        rootScriptPath: String?,
-        rootNodeName: String,
-        rootGroups: [String],
-        nodes: [FlatNode]
-    ) {
+    public init(resourcePath: String, root: FlatNode, nodes: [FlatNode]) {
         self.resourcePath = resourcePath
-        self.rootType = rootType
-        self.rootScriptPath = rootScriptPath
-        self.rootNodeName = rootNodeName
-        self.rootGroups = rootGroups
+        self.root = root
         self.nodes = nodes
     }
 }
