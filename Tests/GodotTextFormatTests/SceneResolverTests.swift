@@ -17,8 +17,8 @@ final class SceneResolverTests: XCTestCase {
         ])
         let resolver = SceneResolver(catalogue: catalogue)
         let flat = try resolver.flatten(resourcePath: "res://main.tscn")
-        XCTAssertEqual(flat.rootType, "Node2D")
-        XCTAssertEqual(flat.rootNodeName, "Main")
+        XCTAssertEqual(flat.root.type, "Node2D")
+        XCTAssertEqual(flat.root.name, "Main")
         XCTAssertEqual(flat.nodes.map(\.path), [["Spinner"], ["Spinner", "Body"]])
         XCTAssertEqual(flat.nodes.map(\.type), ["Sprite2D", "StaticBody2D"])
     }
@@ -35,7 +35,7 @@ final class SceneResolverTests: XCTestCase {
         ])
         let resolver = SceneResolver(catalogue: catalogue)
         let flat = try resolver.flatten(resourcePath: "res://window.tscn")
-        XCTAssertEqual(flat.rootGroups, ["window"])
+        XCTAssertEqual(flat.root.groups, ["window"])
         XCTAssertEqual(flat.nodes.map(\.groups), [["titles"]])
     }
 
@@ -54,7 +54,7 @@ final class SceneResolverTests: XCTestCase {
         ])
         let resolver = SceneResolver(catalogue: catalogue)
         let flat = try resolver.flatten(resourcePath: "res://main.tscn")
-        XCTAssertEqual(flat.rootScriptPath, "res://spin.gd")
+        XCTAssertEqual(flat.root.scriptPath, "res://spin.gd")
     }
 
     // MARK: - Instanced scene typed-root resolution
@@ -179,8 +179,8 @@ final class SceneResolverTests: XCTestCase {
         let resolver = SceneResolver(catalogue: catalogue)
         let flat = try resolver.flatten(resourcePath: "res://child.tscn")
 
-        XCTAssertEqual(flat.rootType, "Node2D", "root type comes from inherited parent")
-        XCTAssertEqual(flat.rootNodeName, "Derived", "root name comes from child")
+        XCTAssertEqual(flat.root.type, "Node2D", "root type comes from inherited parent")
+        XCTAssertEqual(flat.root.name, "Derived", "root name comes from child")
         XCTAssertEqual(flat.nodes.map(\.path), [["Title"], ["Body"], ["Extra"]])
         XCTAssertEqual(flat.nodes.map(\.type), ["Label", "StaticBody2D", "Sprite2D"])
     }
@@ -242,7 +242,7 @@ final class SceneResolverTests: XCTestCase {
             "res://child.tscn": child,
         ])
         let flat = try SceneResolver(catalogue: catalogue).flatten(resourcePath: "res://child.tscn")
-        XCTAssertEqual(flat.rootGroups, ["saveable", "window", "paused"])
+        XCTAssertEqual(flat.root.groups, ["saveable", "window", "paused"])
     }
 
     /// The same union one level down: an overriding node keeps the groups
