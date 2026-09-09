@@ -218,6 +218,90 @@ final class SceneResolverTests: XCTestCase {
         XCTAssertEqual(marker?.groups, ["overlay"], "groups should survive typed override")
     }
 
+    /// Godot composes groups as an ordered union. Packing a derived scene
+    /// writes only the entries no scene in the pack stack already declares
+    /// (`packed_scene.cpp:1086-1109`), and instantiating adds every recorded
+    /// entry to whatever the base instantiation already put on the node
+    /// (`:586-589`). So the derived file is a delta and the base's entries
+    /// survive.
+    func testInheritedRootGroupsUnionWithTheChildsOwn() throws {
+        let parent = """
+        [gd_scene format=3]
+
+        [node name="Base" type="Node2D" groups=["saveable", "window"]]
+        """
+        let child = """
+        [gd_scene format=3]
+
+        [ext_resource type="PackedScene" path="res://parent.tscn" id="1_parent"]
+
+        [node name="Derived" instance=ExtResource("1_parent") groups=["paused"]]
+        """
+        let catalogue = makeCatalogue([
+            "res://parent.tscn": parent,
+            "res://child.tscn": child,
+        ])
+        let flat = try SceneResolver(catalogue: catalogue).flatten(resourcePath: "res://child.tscn")
+        XCTAssertEqual(flat.rootGroups, ["saveable", "window", "paused"])
+    }
+
+    /// The same union one level down: an overriding node keeps the groups
+    /// the inherited node declared and adds its own.
+    func testOverridingNodeGroupsUnionWithTheInheritedNodes() throws {
+        let parent = """
+        [gd_scene format=3]
+
+        [node name="Base" type="Node2D"]
+
+        [node name="Marker" type="Sprite2D" parent="." groups=["overlay"]]
+        """
+        let child = """
+        [gd_scene format=3]
+
+        [ext_resource type="PackedScene" path="res://parent.tscn" id="1_parent"]
+
+        [node name="Derived" instance=ExtResource("1_parent")]
+
+        [node name="Marker" parent="." index="0" groups=["hidden"]]
+        """
+        let catalogue = makeCatalogue([
+            "res://parent.tscn": parent,
+            "res://child.tscn": child,
+        ])
+        let flat = try SceneResolver(catalogue: catalogue).flatten(resourcePath: "res://child.tscn")
+        let marker = flat.nodes.first(where: { $0.name == "Marker" })
+        XCTAssertEqual(marker?.groups, ["overlay", "hidden"])
+    }
+
+    /// An instanced scene's root keeps the groups its own scene declares:
+    /// instantiating the inner scene adds them before the outer scene's
+    /// entries reach the same node.
+    func testInstancedNodeKeepsTheInnerScenesRootGroups() throws {
+        let inner = """
+        [gd_scene format=3]
+
+        [node name="Inner" type="Control" groups=["window"]]
+
+        [node name="InnerLabel" type="Label" parent="."]
+        """
+        let outer = """
+        [gd_scene format=3]
+
+        [ext_resource type="PackedScene" path="res://inner.tscn" id="1_inner"]
+
+        [node name="Outer" type="Node2D"]
+
+        [node name="NestedInstance" parent="." instance=ExtResource("1_inner") groups=["paused"]]
+        """
+        let catalogue = makeCatalogue([
+            "res://inner.tscn": inner,
+            "res://outer.tscn": outer,
+        ])
+        let flat = try SceneResolver(catalogue: catalogue).flatten(resourcePath: "res://outer.tscn")
+        let instance = flat.nodes.first(where: { $0.name == "NestedInstance" })
+        XCTAssertEqual(instance?.groups, ["window", "paused"])
+    }
+
     // MARK: - Nested instance with a script-less root
 
     func testNestedInstanceWithScriptlessRootIsTransparent() throws {
