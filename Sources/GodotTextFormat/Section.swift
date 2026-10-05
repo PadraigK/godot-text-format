@@ -2,9 +2,9 @@ public struct Section: Equatable {
     public let kind: String
     public let attrs: [(String, Value)]
     public let body: [(String, Value)]
-    public let headerRange: SourceRange
+    let headerRange: SourceRange
 
-    public init(
+    init(
         kind: String,
         attrs: [(String, Value)],
         body: [(String, Value)],

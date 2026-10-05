@@ -60,7 +60,7 @@ public struct SceneFile {
         return try SceneFile(sections: sections)
     }
 
-    public init(sections: [Section]) throws {
+    init(sections: [Section]) throws {
         var format = 0
         var uid: String? = nil
         var ext: [ExtResourceEntry] = []

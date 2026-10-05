@@ -7,17 +7,17 @@ public struct SourceLocation: Hashable, Sendable {
     }
 }
 
-public struct SourceRange: Hashable, Sendable {
-    public let start: SourceLocation
+struct SourceRange: Hashable, Sendable {
+    let start: SourceLocation
     /// One-past-the-last-character end position (exclusive upper bound).
-    public let end: SourceLocation
-    public init(start: SourceLocation, end: SourceLocation) {
+    let end: SourceLocation
+    init(start: SourceLocation, end: SourceLocation) {
         self.start = start
         self.end = end
     }
 }
 
-public enum TokenKind: Hashable, Sendable {
+enum TokenKind: Hashable, Sendable {
     case leftBracket      // [
     case rightBracket     // ]
     case leftBrace        // {
@@ -37,15 +37,15 @@ public enum TokenKind: Hashable, Sendable {
     case eof
 }
 
-public struct Token: Hashable, Sendable {
-    public let kind: TokenKind
+struct Token: Hashable, Sendable {
+    let kind: TokenKind
     /// Textual content. For `.string` this is the *decoded* string (escapes resolved).
     /// For `.identifier`, `.integer`, `.double`, `.hexColor`, this is the raw source text.
     /// For punctuation tokens this is a single-character string.
-    public let text: String
-    public let range: SourceRange
+    let text: String
+    let range: SourceRange
 
-    public init(kind: TokenKind, text: String, range: SourceRange) {
+    init(kind: TokenKind, text: String, range: SourceRange) {
         self.kind = kind
         self.text = text
         self.range = range

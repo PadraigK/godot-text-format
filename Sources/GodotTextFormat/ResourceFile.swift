@@ -17,7 +17,7 @@ public struct ResourceFile {
         return try ResourceFile(sections: sections)
     }
 
-    public init(sections: [Section]) throws {
+    init(sections: [Section]) throws {
         var format = 0
         var type = ""
         var scriptClass: String? = nil

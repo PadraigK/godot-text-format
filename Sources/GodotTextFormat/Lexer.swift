@@ -1,4 +1,4 @@
-public struct Lexer {
+struct Lexer {
     private let source: [Character]
     private var index: Int = 0
     private var line: Int = 1
@@ -6,11 +6,11 @@ public struct Lexer {
     private var bracketDepth: Int = 0
     private var atLineStart: Bool = true
 
-    public init(source: String) {
+    init(source: String) {
         self.source = Array(source)
     }
 
-    public mutating func tokenize() throws -> [Token] {
+    mutating func tokenize() throws -> [Token] {
         var tokens: [Token] = []
         while true {
             let token = try nextToken()

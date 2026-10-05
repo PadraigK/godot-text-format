@@ -1,9 +1,9 @@
-public struct ValueParser {
+struct ValueParser {
     private let tokens: [Token]
     private let startIndex: Int
     private var index: Int
 
-    public init(tokens: [Token], startingAt start: Int = 0) {
+    init(tokens: [Token], startingAt start: Int = 0) {
         self.tokens = tokens
         self.startIndex = start
         self.index = start
@@ -11,9 +11,9 @@ public struct ValueParser {
 
     /// Number of tokens consumed relative to the starting index.
     /// SectionParser uses this to advance its own cursor after a call to parseValue().
-    public var consumedCount: Int { index - startIndex }
+    var consumedCount: Int { index - startIndex }
 
-    public mutating func parseValue() throws -> Value {
+    mutating func parseValue() throws -> Value {
         let token = peek()
         switch token.kind {
         case .string:

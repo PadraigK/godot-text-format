@@ -1,12 +1,12 @@
-public struct SectionParser {
+struct SectionParser {
     private let tokens: [Token]
     private var index: Int = 0
 
-    public init(tokens: [Token]) {
+    init(tokens: [Token]) {
         self.tokens = tokens
     }
 
-    public mutating func parseDocument() throws -> [Section] {
+    mutating func parseDocument() throws -> [Section] {
         var sections: [Section] = []
         // Anonymous preamble: `key = value` lines before any `[` header.
         // Used by project.godot for `config_version = 5`.
