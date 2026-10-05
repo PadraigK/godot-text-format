@@ -3,9 +3,6 @@ import PackageDescription
 
 let package = Package(
     name: "godot-text-format",
-    platforms: [
-        .macOS(.v13)
-    ],
     products: [
         .library(name: "GodotTextFormat", targets: ["GodotTextFormat"]),
     ],
