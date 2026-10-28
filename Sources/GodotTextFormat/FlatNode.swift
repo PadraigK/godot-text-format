@@ -27,6 +27,11 @@ public struct FlatNode: Equatable {
     /// class. Nil for non-instanced nodes and for instanced scenes whose
     /// root has no script attached.
     public let instancedRootScriptPath: String?
+    /// The path of the node that owns this one, as Godot's `owner` has it:
+    /// `[]` for a node the scene's own file or a scene it inherits declares,
+    /// including a node it adds inside an instance; the instance's path for
+    /// a node that comes from an instanced scene.
+    public let ownerPath: [String]
 
     public init(
         path: [String],
@@ -36,7 +41,8 @@ public struct FlatNode: Equatable {
         uniqueInOwner: Bool,
         groups: [String],
         instanceScenePath: String?,
-        instancedRootScriptPath: String? = nil
+        instancedRootScriptPath: String? = nil,
+        ownerPath: [String] = []
     ) {
         self.path = path
         self.name = name
@@ -46,5 +52,6 @@ public struct FlatNode: Equatable {
         self.groups = groups
         self.instanceScenePath = instanceScenePath
         self.instancedRootScriptPath = instancedRootScriptPath
+        self.ownerPath = ownerPath
     }
 }

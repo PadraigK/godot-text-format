@@ -147,7 +147,8 @@ public struct SceneResolver {
             uniqueInOwner: flat.uniqueInOwner || existing.uniqueInOwner,
             groups: SceneResolver.unionGroups(existing.groups, flat.groups),
             instanceScenePath: flat.instanceScenePath ?? existing.instanceScenePath,
-            instancedRootScriptPath: flat.instancedRootScriptPath ?? existing.instancedRootScriptPath
+            instancedRootScriptPath: flat.instancedRootScriptPath ?? existing.instancedRootScriptPath,
+            ownerPath: existing.ownerPath
         )
     }
 
@@ -183,7 +184,8 @@ public struct SceneResolver {
                         uniqueInOwner: false,
                         groups: n.groups,
                         instanceScenePath: n.instanceScenePath,
-                        instancedRootScriptPath: n.instancedRootScriptPath
+                        instancedRootScriptPath: n.instancedRootScriptPath,
+                        ownerPath: path + n.ownerPath
                     )
                 }
             }

@@ -435,6 +435,101 @@ final class SceneResolverTests: XCTestCase {
         XCTAssertEqual(flat.nodes[2].scriptPath, "res://panel.gd")
     }
 
+    // MARK: - Owner
+
+    func testOwnerPathFollowsGodotsOwner() throws {
+        let catalogue = makeCatalogue([
+            "res://badge.tscn": """
+            [gd_scene format=3]
+
+            [node name="Badge" type="Control"]
+
+            [node name="Icon" type="TextureRect" parent="."]
+            """,
+            "res://tower_info.tscn": """
+            [gd_scene format=3]
+
+            [ext_resource type="PackedScene" path="res://badge.tscn" id="1_b"]
+
+            [node name="TowerInfo" type="PanelContainer"]
+
+            [node name="VBox" type="VBoxContainer" parent="."]
+
+            [node name="Phase" type="GridContainer" parent="VBox"]
+            unique_name_in_owner = true
+
+            [node name="Badge" parent="." instance=ExtResource("1_b")]
+            """,
+            "res://board.tscn": """
+            [gd_scene format=3]
+
+            [ext_resource type="PackedScene" path="res://tower_info.tscn" id="1_t"]
+
+            [node name="Board" type="Node2D"]
+
+            [node name="TowerInfo" parent="." instance=ExtResource("1_t")]
+
+            [node name="Phase" parent="TowerInfo/VBox"]
+            columns = 3
+
+            [node name="Extra" type="Label" parent="TowerInfo/VBox"]
+            unique_name_in_owner = true
+
+            [node name="Note" type="Label" parent="TowerInfo/Badge"]
+
+            [editable path="TowerInfo"]
+            [editable path="TowerInfo/Badge"]
+            """,
+            "res://level.tscn": """
+            [gd_scene format=3]
+
+            [ext_resource type="PackedScene" path="res://board.tscn" id="1_board"]
+
+            [node name="Level" instance=ExtResource("1_board")]
+
+            [node name="Goal" type="Label" parent="TowerInfo/VBox"]
+            """,
+            "res://main.tscn": """
+            [gd_scene format=3]
+
+            [ext_resource type="PackedScene" path="res://board.tscn" id="1_board"]
+
+            [node name="Main" type="Node"]
+
+            [node name="Board" parent="." instance=ExtResource("1_board")]
+            """,
+        ])
+        let resolver = SceneResolver(catalogue: catalogue)
+        func owners(_ path: String) throws -> [String: String] {
+            let flat = try resolver.flatten(resourcePath: path)
+            XCTAssertEqual(flat.root.ownerPath, [])
+            return Dictionary(uniqueKeysWithValues: flat.nodes.map {
+                ($0.path.joined(separator: "/"), $0.ownerPath.joined(separator: "/"))
+            })
+        }
+        let board: [String: String] = [
+            "TowerInfo": "",
+            "TowerInfo/VBox": "TowerInfo",
+            "TowerInfo/VBox/Phase": "TowerInfo",
+            "TowerInfo/Badge": "TowerInfo",
+            "TowerInfo/Badge/Icon": "TowerInfo/Badge",
+            "TowerInfo/VBox/Extra": "",
+            "TowerInfo/Badge/Note": "",
+        ]
+        XCTAssertEqual(try owners("res://board.tscn"), board)
+        XCTAssertEqual(try owners("res://level.tscn"), board.merging(["TowerInfo/VBox/Goal": ""]) { $1 })
+        XCTAssertEqual(try owners("res://main.tscn"), [
+            "Board": "",
+            "Board/TowerInfo": "Board",
+            "Board/TowerInfo/VBox": "Board/TowerInfo",
+            "Board/TowerInfo/VBox/Phase": "Board/TowerInfo",
+            "Board/TowerInfo/Badge": "Board/TowerInfo",
+            "Board/TowerInfo/Badge/Icon": "Board/TowerInfo/Badge",
+            "Board/TowerInfo/VBox/Extra": "Board",
+            "Board/TowerInfo/Badge/Note": "Board",
+        ])
+    }
+
     fileprivate func makeCatalogue(_ store: [String: String]) -> SceneCatalogue {
         SceneCatalogue { path in
             guard let text = store[path] else { throw ResolveError.sceneNotFound(path) }
