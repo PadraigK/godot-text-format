@@ -1,0 +1,48 @@
+[gd_scene format=3]
+
+[ext_resource type="AnimationLibrary" path="res://combat-library.tres" id="1_combat"]
+
+[sub_resource type="Animation" id="Animation_idle"]
+length = 0.5
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_default"]
+_data = {
+&"idle": SubResource("Animation_idle")
+}
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_body"]
+animations = [{
+"frames": [],
+"loop": true,
+"name": &"default",
+"speed": 5.0
+}, {
+"frames": [],
+"loop": true,
+"name": &"walk",
+"speed": 8.0
+}]
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_wings"]
+animations = [{
+"frames": [],
+"loop": false,
+"name": &"fly",
+"speed": 5.0
+}]
+
+[node name="Main" type="Node2D"]
+
+[node name="Body" type="AnimatedSprite2D" parent="."]
+sprite_frames = SubResource("SpriteFrames_body")
+
+[node name="Wings" type="AnimatedSprite2D" parent="Body"]
+sprite_frames = SubResource("SpriteFrames_wings")
+
+[node name="PlayerAnimations" type="PlayerAnimations" parent="."]
+libraries/ = SubResource("AnimationLibrary_default")
+
+[node name="Tree" type="AnimationTree" parent="Body"]
+libraries/combat = ExtResource("1_combat")
+
+[node name="Empty" type="AnimationPlayer" parent="."]

@@ -1,0 +1,13 @@
+[gd_resource type="AnimationLibrary" format=3]
+
+[sub_resource type="Animation" id="Animation_slash"]
+length = 0.3
+
+[sub_resource type="Animation" id="Animation_kick"]
+length = 0.4
+
+[resource]
+_data = {
+&"slash": SubResource("Animation_slash"),
+&"kick": SubResource("Animation_kick")
+}

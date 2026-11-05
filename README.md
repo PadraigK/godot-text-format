@@ -47,7 +47,7 @@ for node in flat.nodes {
 - `SceneFile`, `ResourceFile` and `ProjectFile` provide the file's sections, external and sub-resources, nodes, connections and properties.
 - `Value`, a property value in Godot's variant syntax: numbers, strings, `StringName`s, node paths, constructors such as `Vector2(1, 2)`, arrays, dictionaries, typed arrays and dictionaries, `Object(…)`, hex colours and resource references.
 - `SceneResolver` over a `SceneCatalogue`: inherited scenes, instanced scenes, unique names, groups and script attachments, with cycle detection.
-- `AnimationExtractor` (animation players and their library and animation names) and `InputActionsExtractor` (input actions, with platform variants).
+- `AnimationExtractor` (the libraries a scene attaches to its animation mixers, whatever their class, with their animation names or their file; the names in a library file; the names in each SpriteFrames, in a scene or a file of its own) and `InputActionsExtractor` (input actions, with platform variants).
 - `ProjectFile.appendingAutoload(name:path:to:)`, which adds an autoload to `project.godot`'s text.
 
 A parse failure throws `ParseError`, with the line and column.
