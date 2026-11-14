@@ -1,0 +1,29 @@
+[gd_resource type="SpriteFrames" format=3]
+
+[sub_resource type="PlaceholderTexture2D" id="PlaceholderTexture2D_y8rig"]
+size = Vector2(16, 24)
+
+[resource]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("PlaceholderTexture2D_y8rig")
+}, {
+"duration": 2.5,
+"texture": SubResource("PlaceholderTexture2D_y8rig")
+}],
+"loop": 0,
+"name": &"jump_up",
+"speed": 12.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("PlaceholderTexture2D_y8rig")
+}, {
+"duration": 2.5,
+"texture": SubResource("PlaceholderTexture2D_y8rig")
+}],
+"loop": 1,
+"name": &"run",
+"speed": 12.0
+}]

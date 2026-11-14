@@ -1,0 +1,53 @@
+[gd_resource type="Resource" format=4]
+
+[ext_resource type="SpriteFrames" path="res://frames.tres" id="1_rg1cy"]
+
+[sub_resource type="Gradient" id="Gradient_c58gb"]
+colors = PackedColorArray(1, 0, 0, 1, 0, 0, 1, 0.5)
+
+[resource]
+resource_name = "Holder"
+metadata/a_bool = true
+metadata/an_int = -42
+metadata/a_big_int = 5000000000
+metadata/a_float = 1.5
+metadata/a_string = "héllo wörld"
+metadata/a_string_name = &"take_hit"
+metadata/a_vector2 = Vector2(1.5, -2)
+metadata/a_vector2i = Vector2i(3, -4)
+metadata/a_rect2 = Rect2(1, 2, 3, 4)
+metadata/a_rect2i = Rect2i(1, 2, 3, 4)
+metadata/a_vector3 = Vector3(1, 2.5, 3)
+metadata/a_vector3i = Vector3i(1, 2, 3)
+metadata/a_vector4 = Vector4(1, 2, 3, 4.5)
+metadata/a_vector4i = Vector4i(1, 2, 3, 4)
+metadata/a_plane = Plane(0, 1, 0, 2.5)
+metadata/a_quaternion = Quaternion(0, 0, 0, 1)
+metadata/an_aabb = AABB(1, 2, 3, 4, 5, 6)
+metadata/a_basis = Basis(1, 0, 0, 0, 2, 0, 0, 0, 3)
+metadata/a_transform2d = Transform2D(1, 0, 0, 1, 5, 6)
+metadata/a_transform3d = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7, 8, 9)
+metadata/a_projection = Projection(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)
+metadata/a_color = Color(0.25, 0.5, 0.75, 1)
+metadata/a_node_path = NodePath("/root/Main/Player:position:x")
+metadata/a_relative_path = NodePath("../Sibling")
+metadata/a_dictionary = {
+3: [1, 2.5, "three"],
+"name": &"idle",
+"nested": {
+"deep": true
+}
+}
+metadata/an_array = [1, "two", Vector2(3, 3), null]
+metadata/bytes = PackedByteArray("AQID")
+metadata/int32s = PackedInt32Array(1, -2, 3)
+metadata/int64s = PackedInt64Array(5000000000, -1)
+metadata/float32s = PackedFloat32Array(0.5, 1.5)
+metadata/float64s = PackedFloat64Array(0.25, 2.5)
+metadata/strings = PackedStringArray("one", "twö")
+metadata/vector2s = PackedVector2Array(1, 2, 3, 4)
+metadata/vector3s = PackedVector3Array(1, 2, 3)
+metadata/colors = PackedColorArray(1, 0, 0, 1)
+metadata/vector4s = PackedVector4Array(1, 2, 3, 4)
+metadata/a_sub_resource = SubResource("Gradient_c58gb")
+metadata/an_ext_resource = ExtResource("1_rg1cy")

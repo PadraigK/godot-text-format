@@ -7,7 +7,8 @@ let package = Package(
         .library(name: "GodotTextFormat", targets: ["GodotTextFormat"]),
     ],
     targets: [
-        .target(name: "GodotTextFormat"),
+        .target(name: "GodotTextFormat", dependencies: ["ZstdDecoder"]),
+        .target(name: "ZstdDecoder", exclude: ["LICENSE"]),
         .testTarget(
             name: "GodotTextFormatTests",
             dependencies: ["GodotTextFormat"],

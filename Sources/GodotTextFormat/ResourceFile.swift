@@ -17,6 +17,16 @@ public struct ResourceFile {
         return try ResourceFile(sections: sections)
     }
 
+    init(format: Int, type: String, scriptClass: String?, uid: String?, extResources: [ExtResourceEntry], subResources: [SubResourceEntry], resource: Section?) {
+        self.format = format
+        self.type = type
+        self.scriptClass = scriptClass
+        self.uid = uid
+        self.extResources = extResources
+        self.subResources = subResources
+        self.resource = resource
+    }
+
     init(sections: [Section]) throws {
         var format = 0
         var type = ""
