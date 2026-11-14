@@ -17,6 +17,9 @@ public struct SceneResolver {
         visiting.append(resourcePath)
         defer { visiting.removeLast() }
 
+        guard SceneCatalogue.isTextScene(resourcePath) else {
+            return try importedScene(resourcePath: resourcePath)
+        }
         let scene = try catalogue.sceneFile(at: resourcePath)
         guard let rootEntry = scene.rootNode else {
             throw ResolveError.notAScene(resourcePath)
@@ -43,6 +46,7 @@ public struct SceneResolver {
         for node in scene.nodes.dropFirst() {
             guard let parentPath = node.parentPath else { continue }
             let path = parentPathComponents(parentPath) + [node.name]
+            if overridesImportedNode(node, at: path, rootImported: false, nodes: nodes, index: pathIndex) { continue }
             let (flat, innerNodes) = try makeFlatNode(node: node, path: path, scene: scene, visiting: &visiting)
             appendOrMerge(flat, explicitType: node.type, into: &nodes, index: &pathIndex)
             for inner in innerNodes {
@@ -81,6 +85,7 @@ public struct SceneResolver {
         for node in child.nodes.dropFirst() {
             guard let parentPath = node.parentPath else { continue }
             let pathComponents = parentPathComponents(parentPath) + [node.name]
+            if overridesImportedNode(node, at: pathComponents, rootImported: parent.root.importedScene, nodes: nodes, index: pathIndex) { continue }
             let (flat, innerNodes) = try makeFlatNode(node: node, path: pathComponents, scene: child, visiting: &visiting)
             appendOrMerge(flat, explicitType: node.type, into: &nodes, index: &pathIndex)
             for inner in innerNodes {
@@ -102,6 +107,54 @@ public struct SceneResolver {
             root: merged(childRootFlat, into: parent.root, explicitType: childRoot.type),
             nodes: nodes
         )
+    }
+
+    /// A scene Godot imports from another format, as one node: its root, typed by its `.import`
+    /// file, and none of its own nodes, which no text file holds.
+    private func importedScene(resourcePath: String) throws -> FlatScene {
+        let importFile: ImportFile
+        do {
+            importFile = try catalogue.importFile(for: resourcePath)
+        } catch let error as ParseError {
+            throw error
+        } catch {
+            throw ResolveError.sceneNotReadable(resourcePath)
+        }
+        var name = resourcePath.split(separator: "/").last.map(String.init) ?? resourcePath
+        if let dot = name.firstIndex(of: ".") { name = String(name[..<dot]) }
+        if case .string(let rootName)? = importFile.param("nodes/root_name"), !rootName.isEmpty { name = rootName }
+        return FlatScene(
+            resourcePath: resourcePath,
+            root: FlatNode(
+                path: [],
+                name: name,
+                type: importFile.sceneRootType,
+                scriptPath: nil,
+                uniqueInOwner: false,
+                groups: [],
+                instanceScenePath: nil,
+                importedScene: true
+            ),
+            nodes: []
+        )
+    }
+
+    /// Whether `node` is a scene's change to a node inside an imported scene: an entry with no
+    /// type and no instance, so one that changes a node another scene declares, at a path no
+    /// text scene declares, below an imported scene's root. Such a node is left out with the
+    /// rest of the imported scene's own nodes, since nothing here says what class it is.
+    private func overridesImportedNode(
+        _ node: SceneFile.NodeEntry,
+        at path: [String],
+        rootImported: Bool,
+        nodes: [FlatNode],
+        index: [String: Int]
+    ) -> Bool {
+        guard node.type == nil, node.instance == nil, index[path.joined(separator: "/")] == nil else { return false }
+        if rootImported { return true }
+        return (1..<path.count).contains { length in
+            index[path.prefix(length).joined(separator: "/")].map { nodes[$0].importedScene } ?? false
+        }
     }
 
     private func parentPathComponents(_ parent: String) -> [String] {
@@ -148,7 +201,8 @@ public struct SceneResolver {
             groups: SceneResolver.unionGroups(existing.groups, flat.groups),
             instanceScenePath: flat.instanceScenePath ?? existing.instanceScenePath,
             instancedRootScriptPath: flat.instancedRootScriptPath ?? existing.instancedRootScriptPath,
-            ownerPath: existing.ownerPath
+            ownerPath: existing.ownerPath,
+            importedScene: flat.importedScene || existing.importedScene
         )
     }
 
@@ -168,10 +222,12 @@ public struct SceneResolver {
         var type = node.type ?? "Node"
         var innerNodes: [FlatNode] = []
         var groups = node.groups
+        var imported = false
         if let instanceId = node.instance, let ext = scene.extResource(id: instanceId) {
             instancePath = ext.path
             let inner = try flattenImpl(resourcePath: ext.path, visiting: &visiting)
             type = inner.root.type
+            imported = inner.root.importedScene
             instancedRootScript = inner.root.scriptPath
             groups = SceneResolver.unionGroups(inner.root.groups, node.groups)
             if instancedRootScript == nil {
@@ -185,7 +241,8 @@ public struct SceneResolver {
                         groups: n.groups,
                         instanceScenePath: n.instanceScenePath,
                         instancedRootScriptPath: n.instancedRootScriptPath,
-                        ownerPath: path + n.ownerPath
+                        ownerPath: path + n.ownerPath,
+                        importedScene: n.importedScene
                     )
                 }
             }
@@ -200,7 +257,8 @@ public struct SceneResolver {
             uniqueInOwner: uniqueInOwner,
             groups: groups,
             instanceScenePath: instancePath,
-            instancedRootScriptPath: instancedRootScript
+            instancedRootScriptPath: instancedRootScript,
+            importedScene: imported
         )
         return (flat, innerNodes)
     }

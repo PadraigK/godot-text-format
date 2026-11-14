@@ -32,6 +32,13 @@ public struct FlatNode: Equatable {
     /// including a node it adds inside an instance; the instance's path for
     /// a node that comes from an instanced scene.
     public let ownerPath: [String]
+    /// True when this node is the root of a scene Godot imports from another format (a model:
+    /// `.glb`, `.gltf`, `.fbx`, `.blend`, …): an instance of one, a node that is such an
+    /// instance through the scenes it comes from, or the root of a scene that inherits one.
+    /// The imported scene's own nodes are in no text file, so none of them is among the flat
+    /// nodes; a node a scene adds below is. `type` is the class the model's `.import` file
+    /// gives its root (`ImportFile.sceneRootType`).
+    public let importedScene: Bool
 
     public init(
         path: [String],
@@ -42,7 +49,8 @@ public struct FlatNode: Equatable {
         groups: [String],
         instanceScenePath: String?,
         instancedRootScriptPath: String? = nil,
-        ownerPath: [String] = []
+        ownerPath: [String] = [],
+        importedScene: Bool = false
     ) {
         self.path = path
         self.name = name
@@ -53,5 +61,6 @@ public struct FlatNode: Equatable {
         self.instanceScenePath = instanceScenePath
         self.instancedRootScriptPath = instancedRootScriptPath
         self.ownerPath = ownerPath
+        self.importedScene = importedScene
     }
 }

@@ -3,6 +3,7 @@ public final class SceneCatalogue {
 
     private let load: Loader
     private var cache: [String: SceneFile] = [:]
+    private var importCache: [String: ImportFile] = [:]
 
     public init(load: @escaping Loader) {
         self.load = load
@@ -13,6 +14,20 @@ public final class SceneCatalogue {
         let text = try load(resPath)
         let parsed = try SceneFile.parse(text)
         cache[resPath] = parsed
+        return parsed
+    }
+
+    /// Whether `resPath` is a text scene, whose nodes can be read. Any other file a scene
+    /// instances is one Godot imports as a scene (a model) or a binary `.scn`.
+    public static func isTextScene(_ resPath: String) -> Bool {
+        resPath.hasSuffix(".tscn")
+    }
+
+    /// The `.import` file beside `resPath`, a file Godot imports.
+    public func importFile(for resPath: String) throws -> ImportFile {
+        if let hit = importCache[resPath] { return hit }
+        let parsed = try ImportFile.parse(try load(resPath + ".import"))
+        importCache[resPath] = parsed
         return parsed
     }
 
@@ -27,6 +42,8 @@ public final class SceneCatalogue {
         if let idx = stack.firstIndex(of: resPath) {
             throw ResolveError.cyclicInheritance(path: Array(stack[idx...]) + [resPath])
         }
+        // An imported scene instances nothing a text file names.
+        guard SceneCatalogue.isTextScene(resPath) else { return }
         stack.append(resPath)
         let scene = try sceneFile(at: resPath)
         // Follow root-node inheritance (instance= on root).

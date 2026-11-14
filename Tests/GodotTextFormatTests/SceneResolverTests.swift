@@ -530,6 +530,161 @@ final class SceneResolverTests: XCTestCase {
         ])
     }
 
+    // MARK: - Imported scenes (models)
+
+    /// An import file for a model with the import dock's Root Type set to `rootType`.
+    private func modelImport(rootType: String = "") -> String {
+        """
+        [remap]
+
+        importer="scene"
+        type="PackedScene"
+
+        [params]
+
+        nodes/root_type="\(rootType)"
+        nodes/root_script=null
+        """
+    }
+
+    /// An instance of a model is one node, typed by the model's import file, with the model's
+    /// own nodes left out: a node the scene adds below it is kept with its type, and an entry
+    /// that only changes a node inside the model is dropped, having no class to give.
+    /// llm-generated
+    func testModelInstanceIsOneNode() throws {
+        let catalogue = makeCatalogue([
+            "res://lane.tscn": """
+            [gd_scene format=3]
+
+            [ext_resource type="PackedScene" path="res://pin.glb" id="1_pin"]
+            [ext_resource type="PackedScene" path="res://board.glb" id="2_board"]
+
+            [node name="Lane" type="Node3D"]
+
+            [node name="Pin" parent="." instance=ExtResource("1_pin")]
+
+            [node name="Body" parent="Pin" index="0"]
+            visible = false
+
+            [node name="Hat" type="MeshInstance3D" parent="Pin/Skeleton3D"]
+
+            [node name="Board" parent="." instance=ExtResource("2_board")]
+
+            [editable path="Pin"]
+            """,
+            "res://pin.glb.import": modelImport(),
+            "res://board.glb.import": modelImport(rootType: "Area3D"),
+        ])
+        let flat = try SceneResolver(catalogue: catalogue).flatten(resourcePath: "res://lane.tscn")
+        XCTAssertEqual(flat.nodes.map { $0.path.joined(separator: "/") }, ["Pin", "Pin/Skeleton3D/Hat", "Board"])
+        XCTAssertEqual(flat.nodes.map(\.type), ["Node3D", "MeshInstance3D", "Area3D"])
+        XCTAssertEqual(flat.nodes.map(\.importedScene), [true, false, true])
+        XCTAssertEqual(flat.nodes.map(\.instanceScenePath), ["res://pin.glb", nil, "res://board.glb"])
+        XCTAssertFalse(flat.root.importedScene)
+        XCTAssertNoThrow(try catalogue.detectCycle(startingFrom: "res://lane.tscn"))
+    }
+
+    /// A scene inherited from a model has the model's root class and is marked as one; what it
+    /// adds is kept and what it only changes inside the model is dropped. llm-generated
+    func testSceneInheritedFromModel() throws {
+        let catalogue = makeCatalogue([
+            "res://shelf.tscn": """
+            [gd_scene format=3]
+
+            [ext_resource type="PackedScene" path="res://shelf.glb" id="1_shelf"]
+
+            [node name="Shelf" instance=ExtResource("1_shelf")]
+
+            [node name="Planks" parent="." index="0"]
+            cast_shadow = 0
+
+            [node name="Body" type="StaticBody3D" parent="Planks"]
+
+            [node name="Shape" type="CollisionShape3D" parent="Planks/Body"]
+            """,
+            "res://shelf.glb.import": modelImport(),
+        ])
+        let flat = try SceneResolver(catalogue: catalogue).flatten(resourcePath: "res://shelf.tscn")
+        XCTAssertEqual(flat.root.type, "Node3D")
+        XCTAssertEqual(flat.root.name, "Shelf")
+        XCTAssertTrue(flat.root.importedScene)
+        XCTAssertEqual(flat.nodes.map { $0.path.joined(separator: "/") }, ["Planks/Body", "Planks/Body/Shape"])
+        XCTAssertEqual(flat.nodes.map(\.type), ["StaticBody3D", "CollisionShape3D"])
+    }
+
+    /// A model reached through other scenes is still a model where it lands: inside an
+    /// instanced scene, and as the root an instanced scene inherits. Changes to its inside are
+    /// dropped from there too. llm-generated
+    func testModelThroughOtherScenes() throws {
+        let catalogue = makeCatalogue([
+            "res://rack.tscn": """
+            [gd_scene format=3]
+
+            [ext_resource type="PackedScene" path="res://pin.glb" id="1_pin"]
+
+            [node name="Rack" type="Node3D"]
+
+            [node name="Pin" parent="." instance=ExtResource("1_pin")]
+            """,
+            "res://shelf.tscn": """
+            [gd_scene format=3]
+
+            [ext_resource type="PackedScene" path="res://shelf.glb" id="1_shelf"]
+
+            [node name="Shelf" instance=ExtResource("1_shelf")]
+
+            [node name="Body" type="StaticBody3D" parent="."]
+            """,
+            "res://room.tscn": """
+            [gd_scene format=3]
+
+            [ext_resource type="PackedScene" path="res://rack.tscn" id="1_rack"]
+            [ext_resource type="PackedScene" path="res://shelf.tscn" id="2_shelf"]
+
+            [node name="Room" type="Node3D"]
+
+            [node name="Rack" parent="." instance=ExtResource("1_rack")]
+
+            [node name="Body" parent="Rack/Pin" index="0"]
+            visible = false
+
+            [node name="Shelf" parent="." instance=ExtResource("2_shelf")]
+
+            [node name="Planks" parent="Shelf" index="0"]
+            visible = false
+
+            [editable path="Rack"]
+            [editable path="Rack/Pin"]
+            [editable path="Shelf"]
+            """,
+            "res://pin.glb.import": modelImport(),
+            "res://shelf.glb.import": modelImport(),
+        ])
+        let flat = try SceneResolver(catalogue: catalogue).flatten(resourcePath: "res://room.tscn")
+        XCTAssertEqual(flat.nodes.map { $0.path.joined(separator: "/") }, ["Rack", "Rack/Pin", "Shelf", "Shelf/Body"])
+        XCTAssertEqual(flat.nodes.map(\.importedScene), [false, true, true, false])
+        XCTAssertEqual(flat.nodes.map(\.type), ["Node3D", "Node3D", "Node3D", "StaticBody3D"])
+    }
+
+    /// An instanced file that is neither a text scene nor an imported one, such as a binary
+    /// scene, can't be read, and the error names it. llm-generated
+    func testInstancedFileWithNoImportIsNotReadable() throws {
+        let catalogue = makeCatalogue([
+            "res://main.tscn": """
+            [gd_scene format=3]
+
+            [ext_resource type="PackedScene" path="res://thing.scn" id="1_thing"]
+
+            [node name="Main" type="Node"]
+
+            [node name="Thing" parent="." instance=ExtResource("1_thing")]
+            """
+        ])
+        XCTAssertThrowsError(try SceneResolver(catalogue: catalogue).flatten(resourcePath: "res://main.tscn")) { error in
+            XCTAssertEqual(error as? ResolveError, .sceneNotReadable("res://thing.scn"))
+        }
+    }
+
     fileprivate func makeCatalogue(_ store: [String: String]) -> SceneCatalogue {
         SceneCatalogue { path in
             guard let text = store[path] else { throw ResolveError.sceneNotFound(path) }

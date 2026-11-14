@@ -17,4 +17,7 @@ public enum ResolveError: Error, Equatable {
     case cyclicInheritance(path: [String])
     case inheritedResourceMissing(id: String, in: String)
     case notAScene(String)
+    /// An inherited or instanced scene that is neither a text scene (`.tscn`) nor a file Godot
+    /// imports as one, with its `.import` file beside it: a binary `.scn`, for one.
+    case sceneNotReadable(String)
 }
