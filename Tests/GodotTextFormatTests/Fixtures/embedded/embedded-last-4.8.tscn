@@ -1,0 +1,17 @@
+[gd_scene format=5]
+
+[sub_resource type="PackedScene" id="PackedScene_gf0eg"]
+[node name="Inner" type="Node3D" unique_id=833709117]
+
+[node name="InnerChild" type="Node" parent="." unique_id=2001224565]
+
+[connection signal="renamed" from="InnerChild" to="." method="queue_free"]
+
+[resource]
+
+[node name="Main" type="Node2D" unique_id=658711073]
+metadata/inner_scene = SubResource("PackedScene_gf0eg")
+
+[node name="OuterChild" type="Node" parent="." unique_id=682900435]
+
+[connection signal="renamed" from="OuterChild" to="." method="queue_free"]

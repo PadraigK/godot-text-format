@@ -324,6 +324,20 @@ final class SceneResolverTests: XCTestCase {
         XCTAssertNil(flat.nodes[2].instanceScenePath)
     }
 
+    // MARK: - A scene embedded in metadata
+
+    /// Flattening a scene that holds another scene in its metadata, as Godot 4.8-beta4 saves
+    /// it, gives the scene's own root and child. llm-generated
+    func testEmbeddedSceneStaysOutOfTheFlatScene() throws {
+        let text = try String(contentsOf:
+            Bundle.module.url(forResource: "embedded-last-4.8.tscn", withExtension: nil, subdirectory: "Fixtures/embedded")!,
+            encoding: .utf8)
+        let flat = try SceneResolver(catalogue: makeCatalogue(["res://main.tscn": text])).flatten(resourcePath: "res://main.tscn")
+        XCTAssertEqual(flat.root.name, "Main")
+        XCTAssertEqual(flat.root.type, "Node2D")
+        XCTAssertEqual(flat.nodes.map(\.path), [["OuterChild"]])
+    }
+
     // MARK: - Unique name in owner
 
     func testUniqueNameInOwnerFlag() throws {

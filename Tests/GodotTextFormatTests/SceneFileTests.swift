@@ -103,8 +103,24 @@ final class SceneFileTests: XCTestCase {
         XCTAssertEqual(tileSetAtlas?.prop("0:0/animation_columns"), .int(4))
     }
 
-    private func loadScene(named name: String) throws -> SceneFile {
-        let url = Bundle.module.url(forResource: name, withExtension: nil, subdirectory: "Fixtures")!
+    /// A scene holding another scene in its metadata, as Godot 4.7.2 and 4.8-beta4 save it
+    /// (`Fixtures/embedded`, written by `make.gd` there), has the scene's own nodes and
+    /// connections, whether the embedded scene is the last sub-resource or another follows it.
+    /// 4.8 writes the embedded scene's nodes and connection after its `[sub_resource]` header;
+    /// 4.7 keeps them in its `_bundled` property. llm-generated
+    func testEmbeddedSceneKeepsItsOwnSections() throws {
+        for name in ["embedded-last-4.7", "embedded-before-4.7", "embedded-last-4.8", "embedded-before-4.8"] {
+            let scene = try loadScene(named: name + ".tscn", subdirectory: "Fixtures/embedded")
+            XCTAssertEqual(scene.nodes.map(\.name), ["Main", "OuterChild"], name)
+            XCTAssertEqual(scene.rootNode?.type, "Node2D", name)
+            XCTAssertEqual(scene.connections.map(\.from), ["OuterChild"], name)
+            XCTAssertEqual(scene.subResources.map(\.type), name.contains("before") ? ["PackedScene", "Gradient"] : ["PackedScene"], name)
+        }
+        XCTAssertEqual(try loadScene(named: "embedded-last-4.8.tscn", subdirectory: "Fixtures/embedded").format, 5)
+    }
+
+    private func loadScene(named name: String, subdirectory: String = "Fixtures") throws -> SceneFile {
+        let url = Bundle.module.url(forResource: name, withExtension: nil, subdirectory: subdirectory)!
         let text = try String(contentsOf: url, encoding: .utf8)
         return try SceneFile.parse(text)
     }

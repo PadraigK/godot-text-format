@@ -1,0 +1,20 @@
+[gd_scene format=5]
+
+[sub_resource type="PackedScene" id="PackedScene_xl816"]
+[node name="Inner" type="Node3D" unique_id=1726935602]
+
+[node name="InnerChild" type="Node" parent="." unique_id=192142311]
+
+[connection signal="renamed" from="InnerChild" to="." method="queue_free"]
+
+[sub_resource type="Gradient" id="Gradient_brg5t"]
+
+[resource]
+
+[node name="Main" type="Node2D" unique_id=673543577]
+metadata/inner_scene = SubResource("PackedScene_xl816")
+
+[node name="OuterChild" type="Node" parent="." unique_id=662612981]
+metadata/gradient = SubResource("Gradient_brg5t")
+
+[connection signal="renamed" from="OuterChild" to="." method="queue_free"]

@@ -68,8 +68,15 @@ public struct SceneFile {
         var nodes: [NodeEntry] = []
         var connections: [ConnectionEntry] = []
         var editables: [String] = []
+        // Godot writes an embedded PackedScene's nodes, connections and editable paths after its
+        // [sub_resource] header, up to the next [sub_resource] or [resource]; one with `_bundled`
+        // holds them in that property instead.
+        var inEmbeddedScene = false
 
         for section in sections {
+            if inEmbeddedScene, ["node", "connection", "editable"].contains(section.kind) {
+                continue
+            }
             switch section.kind {
             case "gd_scene":
                 if case .int(let f) = section.attr("format") ?? .null { format = Int(f) }
@@ -77,7 +84,11 @@ public struct SceneFile {
             case "ext_resource":
                 ext.append(try Self.extResource(from: section))
             case "sub_resource":
-                sub.append(try Self.subResource(from: section))
+                let entry = try Self.subResource(from: section)
+                sub.append(entry)
+                inEmbeddedScene = entry.type == "PackedScene" && entry.prop("_bundled") == nil
+            case "resource":
+                inEmbeddedScene = false
             case "node":
                 nodes.append(try Self.nodeEntry(from: section))
             case "connection":
