@@ -163,15 +163,8 @@ func decompressedBlocks(of bytes: [UInt8], upTo limit: Int?) throws -> [UInt8] {
 /// The `uid://` text of a resource id, as `ResourceUID::id_to_text` writes it; nil for the
 /// id that means none.
 func uidText(_ id: UInt64) -> String? {
-    guard id <= UInt64(Int64.max) else { return nil }
-    let characters = Array("abcdefghijklmnopqrstuvwxy012345678".utf8)
-    var digits: [UInt8] = []
-    var rest = id
-    repeat {
-        digits.append(characters[Int(rest % UInt64(characters.count))])
-        rest /= UInt64(characters.count)
-    } while rest != 0
-    return "uid://" + String(decoding: digits.reversed(), as: UTF8.self)
+    guard let id = Int64(exactly: id) else { return nil }
+    return ResourceUIDs.text(of: id)
 }
 
 /// The header of the stream: everything before the string table.

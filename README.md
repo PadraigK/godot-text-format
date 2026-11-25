@@ -51,7 +51,7 @@ for node in flat.nodes {
 - `ImportFile`, the `.import` file beside a file Godot imports: its importer, the class it loads as and its import settings. The resolver reads it for a model (`.glb`, `.gltf`, `.fbx`, `.blend`) a scene instances or inherits: the model is one node, of the class its Root Type gives or `Node3D`, marked `importedScene`, and none of the nodes inside it, which no text file holds.
 - `AnimationExtractor` (the libraries a scene attaches to its animation mixers, whatever their class, with their animation names or their file; the names in a library file; the names in each SpriteFrames, in a scene or a file of its own) and `InputActionsExtractor` (input actions, with platform variants).
 - `ProjectFile.autoloads`, the project's autoloads in the order Godot adds them (`[autoload_prepend]`'s first), and `ProjectFile.appendingAutoload(name:path:to:)`, which adds an autoload to `project.godot`'s text.
-- `ResourceUIDs`, the `uid://` a file declares for a resource: a scene's or resource's in its header, a script's in the `.uid` file beside it.
+- `ResourceUIDs`, the `uid://` a file declares for a resource: a scene's or resource's in its header, a script's in the `.uid` file beside it. Also the number a uid's text stands for and the text Godot writes for a number, as `ResourceUID.text_to_id` and `id_to_text` give them.
 - `ScriptHeader`, a GDScript file's `class_name` and what it `extends` (a class by name, or a script by path), read from the lines at its top.
 
 A parse failure throws `ParseError`, with the line and column.

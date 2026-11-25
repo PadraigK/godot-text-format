@@ -19,4 +19,32 @@ final class ResourceUIDTests: XCTestCase {
         XCTAssertTrue(ResourceUIDs.mayDeclare("res://player.gd.uid"))
         XCTAssertFalse(ResourceUIDs.mayDeclare("res://player.gd"))
     }
+
+    /// A uid's text and its number, both ways, as Godot 4.7.2's `ResourceUID.text_to_id` and
+    /// `id_to_text` gave them in a headless run: the largest number, `z` and `9` (which Godot
+    /// never writes) read as 25 and 34, text too long for 63 bits kept to its low 63 bits, and
+    /// text Godot doesn't read as a uid. llm-generated
+    func testUIDNumbers() {
+        let pairs: [(String, Int64)] = [
+            ("uid://eny3t2qg3pl5", 309_100_535_800_113_872),
+            ("uid://c4startchk2n", 201_371_505_225_696_067),
+            ("uid://d4n4ub6itg400", 9_223_372_036_854_775_807),
+            ("uid://a", 0),
+        ]
+        for (text, id) in pairs {
+            XCTAssertEqual(ResourceUIDs.id(of: text), id, text)
+            XCTAssertEqual(ResourceUIDs.text(of: id), text, text)
+        }
+        XCTAssertEqual(ResourceUIDs.id(of: "uid://"), 0)
+        XCTAssertEqual(ResourceUIDs.id(of: "uid://z"), 25)
+        XCTAssertEqual(ResourceUIDs.id(of: "uid://9"), 34)
+        XCTAssertEqual(ResourceUIDs.text(of: 34), "uid://ba")
+        XCTAssertEqual(ResourceUIDs.id(of: "uid://0ibyyurl65b4k"), 4_885_361_142_208_378_344)
+        XCTAssertEqual(ResourceUIDs.text(of: 4_885_361_142_208_378_344), "uid://cburgi83sw2ky")
+        XCTAssertEqual(ResourceUIDs.id(of: "uid://zzzzzzzzzzzzzz"), 5_443_912_359_627_349_767)
+        XCTAssertNil(ResourceUIDs.id(of: "uid://ABC"))
+        XCTAssertNil(ResourceUIDs.id(of: "res://x"))
+        XCTAssertNil(ResourceUIDs.id(of: "uid://<invalid>"))
+        XCTAssertNil(ResourceUIDs.text(of: -1))
+    }
 }
